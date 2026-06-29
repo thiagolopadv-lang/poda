@@ -1,6 +1,6 @@
 """
-PODA — Otimizador de Tokens via WhatsApp
-main.py — Ponto de entrada da aplicação FastAPI
+PODA - Otimizador de Tokens via WhatsApp
+main.py - Ponto de entrada da aplicacao FastAPI
 """
 
 import logging
@@ -13,62 +13,72 @@ from routes.whatsapp import router as whatsapp_router
 from config import settings
 
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger("poda")
+
+# Armazena ultimo dado de gravacao/transcricao recebido
+last_recording_data: dict = {}
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("🌱 Poda iniciando...")
-    yield
-    logger.info("Poda encerrando.")
+        logger.info("Poda iniciando...")
+        yield
+        logger.info("Poda encerrando...")
 
 
 app = FastAPI(
-    title="Poda",
-    description="Otimizador de Tokens via WhatsApp",
-    version="1.0.0",
-    lifespan=lifespan,
+        title="Poda",
+        description="Otimizador de Tokens via WhatsApp",
+        version="0.1.0",
+        lifespan=lifespan,
 )
 
 app.include_router(whatsapp_router)
 
 
 @app.get("/")
-async def health():
-    return {"status": "ok", "service": "poda"}
+def root():
+        return {"status": "ok", "service": "Poda"}
 
 
-@app.get("/webhook")
-async def webhook_verify(request: Request):
-    """
-    Verificação do webhook pela Meta.
-    Meta envia: hub.mode, hub.verify_token, hub.challenge
-    """
-    params = dict(request.query_params)
-    mode = params.get("hub.mode")
-    token = params.get("hub.verify_token")
-    challenge = params.get("hub.challenge")
-
-    if mode == "subscribe" and token == settings.WHATSAPP_VERIFY_TOKEN:
-        logger.info("Webhook verificado com sucesso pela Meta.")
-        return PlainTextResponse(content=challenge)
-
-    logger.warning("Falha na verificação do webhook. Token inválido.")
-    return PlainTextResponse(content="Forbidden", status_code=403)
+@app.get("/health")
+def health():
+        return {"status": "healthy"}
 
 
 @app.get("/twiml-record")
 @app.post("/twiml-record")
-def twiml_record():
+async def twiml_record(request: Request):
         """TwiML para gravar chamada de verificacao Meta"""
         from fastapi.responses import Response
-        twiml = ('<?xml version="1.0" encoding="UTF-8"?>'
-                 '<Response>'
-                 '<Say language="pt-BR">Aguarde. Gravando o codigo de verificacao.</Say>'
-                 '<Record maxLength="60" transcribe="true"/>'
-                 '</Response>')
+
+    # Captura dados do POST (status de gravacao/transcricao)
+        if request.method == "POST":
+                    form_data = await request.form()
+                    data = dict(form_data)
+                    global last_recording_data
+                    last_recording_data = data
+                    logger.info(f"TWILIO CALLBACK DATA: {data}")
+                    return Response(content="OK", media_type="text/plain")
+
+        # GET: retorna TwiML para gravar a chamada
+        base_url = str(request.base_url).rstrip("/")
+        transcribe_cb = f"{base_url}/twiml-record"
+        twiml = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<Response>'
+            '<Say language="pt-BR">Aguarde. Gravando o codigo de verificacao.</Say>'
+            f'<Record maxLength="60" transcribe="true" transcribeCallback="{transcribe_cb}"/>'
+            '</Response>'
+        )
         return Response(content=twiml, media_type="application/xml")
+
+
+@app.get("/last-transcription")
+def last_transcription():
+        """Retorna os ultimos dados de gravacao/transcricao do Twilio"""
+        return last_recording_data
     
