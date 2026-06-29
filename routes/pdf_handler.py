@@ -40,7 +40,7 @@ async def processar_pdf(numero: str, media_id: str) -> None:
 
     # --- Converter para Markdown ---
     try:
-        markdown, num_paginas = await pdf_para_markdown(pdf_bytes)
+        markdown, num_paginas, tokens_brutos = await pdf_para_markdown(pdf_bytes)
     except Exception as e:
         logger.error(f"Erro ao converter PDF: {e}")
         await enviar_texto(
@@ -61,6 +61,7 @@ async def processar_pdf(numero: str, media_id: str) -> None:
         markdown=markdown,
         num_paginas=num_paginas,
         tokens=tokens,
+        tokens_brutos=tokens_brutos,
     )
 
     if conteudo_separado is None:
