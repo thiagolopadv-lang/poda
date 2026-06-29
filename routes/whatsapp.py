@@ -4,7 +4,6 @@ Recebe todas as mensagens, detecta o tipo e roteia para o handler correto.
 """
 
 import logging
-import asyncio
 
 from fastapi import APIRouter, Request, BackgroundTasks
 from fastapi.responses import JSONResponse
@@ -12,14 +11,18 @@ from fastapi.responses import JSONResponse
 from utils.detector import detectar_tipo, extrair_url, ContentType
 from utils.formatter import formatar_nao_suportado
 from services.whatsapp_api import enviar_texto, marcar_como_lida
+from services.rate_limiter import rate_limiter
 from routes import url_handler, pdf_handler, token_handler
 
 logger = logging.getLogger("poda.whatsapp")
 
 router = APIRouter()
 
-# Mensagem de boas-vindas (enviada na primeira interação ou quando o usuário envia "oi", "ola", etc.)
+# Saudações → mensagem de boas-vindas
 SAUDACOES = {"oi", "olá", "ola", "hello", "hi", "hey", "oie", "bom dia", "boa tarde", "boa noite"}
+
+# Comandos especiais
+COMANDOS = {"/status", "/ajuda", "/help", "/planos", "/plano", "/pro"}
 
 MENSAGEM_BOAS_VINDAS = (
     "🌱 *Olá! Eu sou o Poda.*\n\n"
@@ -31,7 +34,28 @@ MENSAGEM_BOAS_VINDAS = (
     "   → Receba o documento estruturado em Markdown\n\n"
     "📝 *Texto* — qualquer texto\n"
     "   → Veja a contagem de tokens e o custo por modelo de IA\n\n"
+    "💡 *Comandos úteis:*\n"
+    "   /status — ver seu uso de hoje\n"
+    "   /planos — conhecer os planos\n\n"
     "_Mande qualquer um desses agora e eu processo na hora._"
+)
+
+MENSAGEM_PLANOS = (
+    "🌱 *Planos do Poda*\n\n"
+    "🆓 *Free — R$0/mês*\n"
+    "   • 5 URLs por dia\n"
+    "   • 2 PDFs por dia\n"
+    "   • Contador de tokens ilimitado\n\n"
+    "⚡ *Pro — R$19/mês*\n"
+    "   • 50 URLs por dia\n"
+    "   • 20 PDFs por dia\n"
+    "   • Sem branding nas respostas\n"
+    "   • Fallback Firecrawl ativado\n\n"
+    "👥 *Equipe — R$79/mês*\n"
+    "   • Uso ilimitado\n"
+    "   • Até 5 usuários\n"
+    "   • Webhook/API disponível\n\n"
+    "👉 Assinar: poda.io/pro"
 )
 
 
@@ -85,11 +109,19 @@ async def _rotear_mensagem(numero: str, message: dict) -> None:
     """Detecta o tipo de conteúdo e roteia para o handler correto."""
     msg_type = message.get("type", "")
 
-    # Saudação → mensagem de boas-vindas
     if msg_type == "text":
-        body_text = message.get("text", {}).get("body", "").strip().lower()
-        if body_text in SAUDACOES or len(body_text) <= 3:
+        body_text = message.get("text", {}).get("body", "").strip()
+        body_lower = body_text.lower()
+
+        # Saudação → boas-vindas
+        if body_lower in SAUDACOES or len(body_lower) <= 3:
             await enviar_texto(numero, MENSAGEM_BOAS_VINDAS)
+            return
+
+        # Comandos especiais
+        primeiro_token = body_lower.split()[0] if body_lower else ""
+        if primeiro_token in COMANDOS:
+            await _processar_comando(numero, primeiro_token)
             return
 
     tipo = detectar_tipo(message)
@@ -115,5 +147,40 @@ async def _rotear_mensagem(numero: str, message: dict) -> None:
         else:
             await enviar_texto(numero, formatar_nao_suportado())
 
+    elif tipo == ContentType.UNSUPPORTED:
+        raw_type = message.get("type", "")
+        resposta = formatar_nao_suportado(raw_type)
+        if resposta:  # Reações retornam string vazia — não responder
+            await enviar_texto(numero, resposta)
+
     else:
         await enviar_texto(numero, formatar_nao_suportado())
+
+
+async def _processar_comando(numero: str, comando: str) -> None:
+    """Processa comandos especiais do bot."""
+    if comando == "/status":
+        status = rate_limiter.status_usuario(numero)
+        mensagem = (
+            f"📊 *Seu uso hoje ({status['data']})*\n\n"
+            f"🔗 URLs: {status['urls_usadas']}/{status['urls_limite']} usadas"
+            f" — {status['urls_restantes']} restantes\n"
+            f"📄 PDFs: {status['pdfs_usados']}/{status['pdfs_limite']} usados"
+            f" — {status['pdfs_restantes']} restantes\n"
+            f"📝 Contador de tokens: ∞ (ilimitado)\n\n"
+        )
+        if status["urls_restantes"] == 0 or status["pdfs_restantes"] == 0:
+            mensagem += (
+                "⚠️ _Algum limite foi atingido hoje._\n"
+                "Limite reseta à meia-noite (horário de Brasília).\n\n"
+                "👉 Plano Pro (R$19/mês): poda.io/pro"
+            )
+        else:
+            mensagem += "_Contador de tokens é sempre gratuito e ilimitado._"
+        await enviar_texto(numero, mensagem)
+
+    elif comando in {"/ajuda", "/help"}:
+        await enviar_texto(numero, MENSAGEM_BOAS_VINDAS)
+
+    elif comando in {"/planos", "/plano", "/pro"}:
+        await enviar_texto(numero, MENSAGEM_PLANOS)
