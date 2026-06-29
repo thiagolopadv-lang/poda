@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     FREE_URL_LIMIT_PER_DAY: int = 5
     FREE_PDF_LIMIT_PER_DAY: int = 2
 
+    # Monitoramento de erros
+    SENTRY_DSN: str = os.getenv("SENTRY_DSN", "")
+
     # Taxa de câmbio USD → BRL (fixada ou atualizada via BACEN)
     USD_TO_BRL: float = float(os.getenv("USD_TO_BRL", "5.70"))
 
