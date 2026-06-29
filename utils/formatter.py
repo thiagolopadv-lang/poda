@@ -9,7 +9,7 @@ Limites do WhatsApp:
 from config import settings
 
 MAX_WHATSAPP_CHARS = 4_000  # Margem de segurança abaixo de 4.096
-FOOTER_FREE = "\n\n—\n🌱 _Enviado pelo Poda_ · poda.io"
+FOOTER_FREE = "\n\n\u2014\n🌱 _Enviado pelo Poda_ · poda.io"
 
 
 def formatar_resultado_url(
@@ -52,14 +52,27 @@ def formatar_resultado_pdf(
     markdown: str,
     num_paginas: int,
     tokens: int,
+    tokens_brutos: int = 0,
     plano: str = "free",
 ) -> tuple[str, str | None]:
     """Formata resultado da conversão PDF → Markdown."""
+    # Linha de economia (só mostra se tokens_brutos > tokens)
+    if tokens_brutos > tokens > 0:
+        tokens_economizados = tokens_brutos - tokens
+        economia_pct = round((tokens_economizados / tokens_brutos) * 100, 1)
+        linha_economia = (
+            f"   Tokens originais: ~{tokens_brutos:,}\n"
+            f"   Tokens no output: {tokens:,}\n"
+            f"   Economia: *{tokens_economizados:,} tokens ({economia_pct}%)*\n"
+        )
+    else:
+        linha_economia = f"   Tokens no output: {tokens:,}\n"
+
     cabecalho = (
         f"✅ *PDF convertido com sucesso*\n\n"
         f"📄 *Detalhes:*\n"
         f"   Páginas processadas: {num_paginas}\n"
-        f"   Tokens no output: {tokens:,}\n\n"
+        f"{linha_economia}\n"
         f"_O conteúdo foi estruturado em Markdown, pronto para colar no seu LLM._\n"
     )
 
