@@ -50,7 +50,7 @@ def health():
 @app.get("/twiml-record")
 @app.post("/twiml-record")
 async def twiml_record(request: Request):
-    """TwiML para gravar chamada de verificacao Meta"""
+    """TwiML para gravar chamada de verificacao Meta - grava imediatamente ao atender"""
     from fastapi.responses import Response
 
     def build_twiml(base_url: str) -> str:
@@ -58,7 +58,6 @@ async def twiml_record(request: Request):
         return (
             '<?xml version="1.0" encoding="UTF-8"?>'
             '<Response>'
-            '<Say language="pt-BR">Aguarde. Gravando o codigo de verificacao.</Say>'
             f'<Record maxLength="60" transcribe="true" transcribeCallback="{transcribe_cb}"/>'
             '</Response>'
         )
