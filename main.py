@@ -58,3 +58,17 @@ async def webhook_verify(request: Request):
 
     logger.warning("Falha na verificação do webhook. Token inválido.")
     return PlainTextResponse(content="Forbidden", status_code=403)
+
+
+@app.get("/twiml-record")
+@app.post("/twiml-record")
+def twiml_record():
+        """TwiML para gravar chamada de verificacao Meta"""
+        from fastapi.responses import Response
+        twiml = ('<?xml version="1.0" encoding="UTF-8"?>'
+                 '<Response>'
+                 '<Say language="pt-BR">Aguarde. Gravando o codigo de verificacao.</Say>'
+                 '<Record maxLength="60" transcribe="true"/>'
+                 '</Response>')
+        return Response(content=twiml, media_type="application/xml")
+    
