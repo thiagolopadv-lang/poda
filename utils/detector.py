@@ -1,5 +1,5 @@
 """
-detector.py — Detecta o tipo de conteúdo enviado pelo usuário
+detector.py -- Detecta o tipo de conteudo enviado pelo usuario
 """
 
 import re
@@ -10,6 +10,7 @@ class ContentType(str, Enum):
     URL = "url"
     PDF = "pdf"
     TEXT = "text"
+    UNSUPPORTED = "unsupported"
 
 
 # Regex para detectar URLs (http:// ou https://)
@@ -19,17 +20,16 @@ URL_PATTERN = re.compile(
     r"(?:/[^\s]*)?"
 )
 
+# Tipos de mensagem do WhatsApp nao suportados
+TIPOS_BLOQUEADOS = {
+    "image", "audio", "video", "sticker",
+    "reaction", "location", "contacts"
+}
+
 
 def detectar_tipo(message: dict) -> ContentType:
     """
-    Recebe o objeto de mensagem do WhatsApp e retorna o tipo de conteúdo.
-
-    Estrutura do objeto message da Meta API:
-    {
-      "type": "text" | "document" | "image" | ...,
-      "text": {"body": "..."},
-      "document": {"mime_type": "application/pdf", "id": "..."}
-    }
+    Recebe o objeto de mensagem do WhatsApp e retorna o tipo de conteudo.
     """
     msg_type = message.get("type", "")
 
@@ -39,18 +39,21 @@ def detectar_tipo(message: dict) -> ContentType:
         mime = doc.get("mime_type", "")
         if mime == "application/pdf":
             return ContentType.PDF
-        # Outros documentos: tratar como texto (não suportado)
-        return ContentType.TEXT
+        return ContentType.UNSUPPORTED
 
-    # Mensagem de texto: verificar se contém URL
+    # Mensagem de texto: verificar se contem URL
     if msg_type == "text":
         body = message.get("text", {}).get("body", "")
         if URL_PATTERN.search(body):
             return ContentType.URL
         return ContentType.TEXT
 
-    # Tipo não suportado (imagem, áudio, vídeo, etc.)
-    return ContentType.TEXT
+    # Imagem, audio, video, sticker, reacao, localizacao
+    blocked = msg_type in TIPOS_BLOQUEADOS
+    if blocked:
+        return ContentType.UNSUPPORTED
+
+    return ContentType.UNSUPPORTED
 
 
 def extrair_url(body: str) -> str | None:
