@@ -29,12 +29,11 @@ class Settings(BaseSettings):
     # Monitoramento de erros
     SENTRY_DSN: str = os.getenv("SENTRY_DSN", "")
 
-    # Taxa de câmbio USD → BRL (fixada ou atualizada via BACEN)
+    # Taxa de câmbio USD → BRL (fixada ou atualizada via env)
     USD_TO_BRL: float = float(os.getenv("USD_TO_BRL", "5.70"))
 
-    class Config:
-        env_file = ".env"
-        extra = "ignore"
+    # Redis (para rate limiter persistente entre deploys)
+    REDIS_URL: str = os.getenv("REDIS_URL", "")
 
 
 settings = Settings()
