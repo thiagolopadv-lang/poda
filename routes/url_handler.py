@@ -1,6 +1,6 @@
 """
-url_handler.py — Processa URLs enviadas pelo usuário
-Fluxo: verificar limite → Jina Reader → fallback Firecrawl → erro
+url_handler.py - Processa URLs enviadas pelo usuario
+Fluxo: verificar limite -> Jina Reader -> fallback Firecrawl -> erro
 """
 
 import logging
@@ -21,14 +21,17 @@ logger = logging.getLogger("poda.url_handler")
 
 async def processar_url(numero: str, url: str) -> None:
     """
-    Orquestra a conversão de URL para Markdown e envia o resultado ao usuário.
+    Orquestra a conversao de URL para Markdown e envia o resultado ao usuario.
     """
-    # --- Verificar limite diário (plano free) ---
+    log_ctx = {"numero": numero, "url": url}
+
+    # --- Verificar limite diario (plano free) ---
     if not await rate_limiter.pode_processar_url(numero):
+        logger.info("Limite diario de URLs atingido.", extra=log_ctx)
         await enviar_texto(
             numero,
             formatar_limite_atingido(
-                tipo="conversões de URL",
+                tipo="conversoes de URL",
                 limite=settings.FREE_URL_LIMIT_PER_DAY,
             ),
         )
@@ -39,43 +42,54 @@ async def processar_url(numero: str, url: str) -> None:
     # --- Tentativa 1: Jina Reader ---
     try:
         markdown = await jina.url_para_markdown(url)
+        if markdown:
+            logger.info("Jina Reader bem-sucedido.", extra=log_ctx)
     except Exception as e:
-        logger.warning(f"Jina Reader falhou para {url}: {e}")
+        logger.warning("Jina Reader falhou.", extra={**log_ctx, "erro": str(e)})
 
     # --- Tentativa 2: Firecrawl ---
     if not markdown:
         try:
             markdown = await firecrawl.url_para_markdown(url)
+            if markdown:
+                logger.info("Firecrawl bem-sucedido.", extra=log_ctx)
         except Exception as e:
-            logger.warning(f"Firecrawl falhou para {url}: {e}")
+            logger.warning("Firecrawl falhou.", extra={**log_ctx, "erro": str(e)})
 
     # --- Falha total ---
     if not markdown:
+        logger.error("Todas as tentativas de conversao falharam.", extra=log_ctx)
         await enviar_texto(
             numero,
             formatar_erro(
-                "Esta página pode estar protegida por login, "
-                "carregar conteúdo via JavaScript sem fallback disponível, "
-                "ou estar temporariamente indisponível."
+                "Esta pagina pode estar protegida por login, "
+                "carregar conteudo via JavaScript sem fallback disponivel, "
+                "ou estar temporariamente indisponivel."
             ),
         )
         return
 
-    # --- Registrar uso (só após processamento bem-sucedido) ---
+    # --- Registrar uso (so apos processamento bem-sucedido) ---
     await rate_limiter.registrar_url(numero)
     urls_restantes = await rate_limiter.urls_restantes(numero)
 
-    # --- Calcular métricas de compressão ---
+    # --- Calcular metricas de compressao ---
     enc = tiktoken.get_encoding("cl100k_base")
     tokens_depois = len(enc.encode(markdown))
-
-    # Estimar tokens de HTML bruto: média de 5x o Markdown (heurística conservadora)
     tokens_antes = tokens_depois * 5
-
-    # Custo economizado: tokens_antes - tokens_depois em GPT-4o (input: $2.50/1M tokens)
     tokens_economizados = tokens_antes - tokens_depois
     custo_economizado_usd = (tokens_economizados / 1_000_000) * 2.50
     custo_economizado_brl = custo_economizado_usd * settings.USD_TO_BRL
+
+    logger.info(
+        "URL convertida com sucesso.",
+        extra={
+            **log_ctx,
+            "tokens_entrada": tokens_antes,
+            "tokens_saida": tokens_depois,
+            "urls_restantes": urls_restantes,
+        },
+    )
 
     # --- Formatar e enviar ---
     cabecalho, conteudo_separado = formatar_resultado_url(
