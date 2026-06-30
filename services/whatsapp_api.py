@@ -1,6 +1,6 @@
 """
 whatsapp_api.py — Cliente para a Meta WhatsApp Cloud API
-Responsável por enviar mensagens e baixar mídias.
+Responsável por enviar mensagens, fazer upload de mídias e baixar arquivos.
 """
 
 import logging
@@ -41,15 +41,63 @@ async def enviar_texto(numero: str, mensagem: str) -> bool:
 
 async def enviar_arquivo_texto(numero: str, conteudo: str, nome_arquivo: str = "resultado.md") -> bool:
     """
-    Envia conteúdo como arquivo de documento.
-    Nota: A Meta API requer upload prévio da mídia para obter o media_id.
-    Esta função usa envio via URL (link direto) — para MVP, enviar como texto truncado.
-    TODO: Implementar upload de mídia via /media endpoint para Sprint 2+
+    Envia conteúdo como arquivo de documento via WhatsApp Cloud API.
+    Fluxo:
+      1. Upload de mídia em /media (multipart/form-data)
+      2. Envio de mensagem do tipo "document" com o media_id retornado
+    Fallback: se o upload falhar, envia como texto truncado.
     """
-    # Por ora, enviar como texto truncado com aviso
-    truncado = conteudo[:3_800]
-    aviso = "\n\n_[Conteúdo truncado. Em breve: envio como arquivo .md]_"
-    return await enviar_texto(numero, truncado + aviso)
+    url_base = f"{BASE_URL}/{settings.WHATSAPP_PHONE_NUMBER_ID}"
+    headers_auth = {"Authorization": f"Bearer {settings.WHATSAPP_TOKEN}"}
+
+    conteudo_bytes = conteudo.encode("utf-8")
+
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        # 1. Upload da mídia
+        upload_response = await client.post(
+            f"{url_base}/media",
+            headers=headers_auth,
+            data={"messaging_product": "whatsapp"},
+            files={"file": (nome_arquivo, conteudo_bytes, "text/plain")},
+        )
+
+        if upload_response.status_code != 200:
+            logger.error(
+                f"Erro no upload de mídia: {upload_response.status_code} — {upload_response.text}"
+            )
+            # Fallback: enviar como texto truncado com aviso
+            truncado = conteudo[:3_800]
+            aviso = "\n\n_[Conteúdo truncado. Erro no envio do arquivo .md]_"
+            return await enviar_texto(numero, truncado + aviso)
+
+        media_id = upload_response.json()["id"]
+        logger.info(f"Upload concluído: media_id={media_id}, arquivo={nome_arquivo}")
+
+        # 2. Enviar mensagem com documento
+        doc_response = await client.post(
+            f"{url_base}/messages",
+            headers={**headers_auth, "Content-Type": "application/json"},
+            json={
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": numero,
+                "type": "document",
+                "document": {
+                    "id": media_id,
+                    "filename": nome_arquivo,
+                    "caption": "Aqui está o conteúdo completo em Markdown. Abra e copie para o seu LLM.",
+                },
+            },
+        )
+
+        if doc_response.status_code != 200:
+            logger.error(
+                f"Erro ao enviar documento: {doc_response.status_code} — {doc_response.text}"
+            )
+            return False
+
+    logger.info(f"Arquivo {nome_arquivo} enviado para {numero}")
+    return True
 
 
 async def marcar_como_lida(numero: str, message_id: str) -> None:
@@ -72,7 +120,7 @@ async def marcar_como_lida(numero: str, message_id: str) -> None:
 async def baixar_midia(media_id: str) -> bytes:
     """
     Baixa uma mídia (PDF) da Meta API e retorna os bytes.
-    Fluxo: GET /media_id → URL temporária → GET URL → bytes
+    Fluxo: GET /media_id -> URL temporária -> GET URL -> bytes
     """
     headers = {"Authorization": f"Bearer {settings.WHATSAPP_TOKEN}"}
 
