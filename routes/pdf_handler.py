@@ -22,7 +22,7 @@ async def processar_pdf(numero: str, media_id: str) -> None:
     Orquestra o download e conversão do PDF para Markdown.
     """
     # --- Verificar limite diário (plano free) ---
-    if not rate_limiter.pode_processar_pdf(numero):
+    if not await rate_limiter.pode_processar_pdf(numero):
         await enviar_texto(
             numero,
             formatar_limite_atingido(
@@ -66,8 +66,8 @@ async def processar_pdf(numero: str, media_id: str) -> None:
         return
 
     # --- Registrar uso (só após processamento bem-sucedido) ---
-    rate_limiter.registrar_pdf(numero)
-    pdfs_restantes = rate_limiter.pdfs_restantes(numero)
+    await rate_limiter.registrar_pdf(numero)
+    pdfs_restantes = await rate_limiter.pdfs_restantes(numero)
 
     # --- Calcular tokens do output ---
     enc = tiktoken.get_encoding("cl100k_base")
