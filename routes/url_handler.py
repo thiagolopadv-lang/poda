@@ -24,7 +24,7 @@ async def processar_url(numero: str, url: str) -> None:
     Orquestra a conversão de URL para Markdown e envia o resultado ao usuário.
     """
     # --- Verificar limite diário (plano free) ---
-    if not rate_limiter.pode_processar_url(numero):
+    if not await rate_limiter.pode_processar_url(numero):
         await enviar_texto(
             numero,
             formatar_limite_atingido(
@@ -62,8 +62,8 @@ async def processar_url(numero: str, url: str) -> None:
         return
 
     # --- Registrar uso (só após processamento bem-sucedido) ---
-    rate_limiter.registrar_url(numero)
-    urls_restantes = rate_limiter.urls_restantes(numero)
+    await rate_limiter.registrar_url(numero)
+    urls_restantes = await rate_limiter.urls_restantes(numero)
 
     # --- Calcular métricas de compressão ---
     enc = tiktoken.get_encoding("cl100k_base")
