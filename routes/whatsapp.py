@@ -160,7 +160,7 @@ async def _rotear_mensagem(numero: str, message: dict) -> None:
 async def _processar_comando(numero: str, comando: str) -> None:
     """Processa comandos especiais do bot."""
     if comando == "/status":
-        status = rate_limiter.status_usuario(numero)
+        status = await rate_limiter.status_usuario(numero)
         mensagem = (
             f"📊 *Seu uso hoje ({status['data']})*\n\n"
             f"🔗 URLs: {status['urls_usadas']}/{status['urls_limite']} usadas"
