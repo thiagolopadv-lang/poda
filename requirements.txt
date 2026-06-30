@@ -32,5 +32,8 @@ tokencost==0.1.18
 # --- Monitoramento de Erros ---
 sentry-sdk[fastapi]==2.19.2
 
+# --- Cache / Rate Limiter persistente ---
+redis==5.2.0
+
 # --- Utilitários ---
 python-multipart==0.0.9  # Para upload de arquivos via FastAPI
