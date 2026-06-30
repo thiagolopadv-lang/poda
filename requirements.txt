@@ -1,4 +1,4 @@
-# PODA — Dependências Python
+# PODA â DependÃªncias Python
 # Instalar com: pip install -r requirements.txt
 
 # --- Framework Web ---
@@ -6,23 +6,23 @@ fastapi==0.115.0
 uvicorn[standard]==0.30.6
 pydantic-settings==2.4.0
 
-# --- HTTP Client (assíncrono) ---
+# --- HTTP Client (assÃ­ncrono) ---
 httpx==0.27.2
 
-# --- URL → Markdown ---
-# Jina Reader: apenas requisições HTTP (sem biblioteca extra)
-# Firecrawl: apenas requisições HTTP (sem biblioteca extra)
+# --- URL â Markdown ---
+# Jina Reader: apenas requisiÃ§Ãµes HTTP (sem biblioteca extra)
+# Firecrawl: apenas requisiÃ§Ãµes HTTP (sem biblioteca extra)
 
-# --- PDF → Markdown ---
+# --- PDF â Markdown ---
 pymupdf4llm==0.0.17
 pymupdf==1.24.10
 
-# Marker (OCR para PDFs escaneados) — instalar separadamente se necessário:
+# Marker (OCR para PDFs escaneados) â instalar separadamente se necessÃ¡rio:
 # pip install marker-pdf
 # Descomente abaixo para incluir no deploy (aumenta ~2GB no container):
 # marker-pdf==0.3.8
 
-# LlamaParse (fallback premium — opcional)
+# LlamaParse (fallback premium â opcional)
 # llama-parse==0.5.0
 
 # --- Token Counter ---
@@ -35,5 +35,9 @@ sentry-sdk[fastapi]==2.19.2
 # --- Cache / Rate Limiter persistente ---
 redis==5.2.0
 
-# --- Utilitários ---
+# --- UtilitÃ¡rios ---
 python-multipart==0.0.9  # Para upload de arquivos via FastAPI
+
+# --- Testes ---
+pytest==8.3.4
+pytest-asyncio==0.24.0
