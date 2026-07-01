@@ -1,5 +1,5 @@
 """
-dashboard.py â Painel de monitoramento do Poda
+dashboard.py — Painel de monitoramento do Poda
 
 Acesso: GET /dashboard?token=DASHBOARD_TOKEN
 API:    GET /api/metrics?token=DASHBOARD_TOKEN
@@ -23,7 +23,7 @@ def _auth(token: str) -> bool:
 @router.get("/api/metrics")
 async def api_metrics(token: str = Query("")):
     if not _auth(token):
-        return JSONResponse(status_code=401, content={"erro": "Token invÃ¡lido"})
+        return JSONResponse(status_code=401, content={"erro": "Token inválido"})
     dados = await obter_metricas()
     return dados
 
@@ -31,11 +31,11 @@ async def api_metrics(token: str = Query("")):
 @router.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(token: str = Query("")):
     if not _auth(token):
-        return HTMLResponse(content=_html_login(), status_code=200)
-    return HTMLResponse(content=_html_dashboard(token))
+        return HTMLResponse(content=_html_login(), status_code=200, media_type="text/html; charset=utf-8")
+    return HTMLResponse(content=_html_dashboard(token), media_type="text/html; charset=utf-8")
 
 
-# ââ Tela de login ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+# ── Tela de login ────────────────────────────────────────────────────────────
 
 def _html_login() -> str:
     return """<!DOCTYPE html>
@@ -43,7 +43,7 @@ def _html_login() -> str:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Poda â Acesso ao Painel</title>
+<title>Poda — Acesso ao Painel</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -88,13 +88,13 @@ def _html_login() -> str:
 </head>
 <body>
 <div class="card">
-  <div class="logo">ð¿</div>
+  <div class="logo">🌿</div>
   <h1>Poda</h1>
   <p class="sub">Painel de monitoramento</p>
   <label>Token de acesso</label>
-  <input type="password" id="token" placeholder="â¢â¢â¢â¢â¢â¢â¢â¢" autocomplete="off">
+  <input type="password" id="token" placeholder="••••••••" autocomplete="off">
   <button onclick="entrar()">Entrar</button>
-  <p class="erro" id="erro">Token invÃ¡lido. Tente novamente.</p>
+  <p class="erro" id="erro">Token inválido. Tente novamente.</p>
 </div>
 <script>
 document.getElementById('token').addEventListener('keydown', e => {
@@ -115,7 +115,7 @@ async function entrar() {
 </html>"""
 
 
-# ââ Dashboard principal âââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+# ── Dashboard principal ───────────────────────────────────────────────────────
 
 def _html_dashboard(token: str) -> str:
     return f"""<!DOCTYPE html>
@@ -123,7 +123,7 @@ def _html_dashboard(token: str) -> str:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Poda â Painel</title>
+<title>Poda — Painel</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
@@ -186,7 +186,7 @@ def _html_dashboard(token: str) -> str:
   /* LAYOUT */
   .container {{ max-width: 1280px; margin: 0 auto; padding: 24px 20px; }}
 
-  /* SEÃÃES */
+  /* SEÇÕES */
   .section-label {{
     font-size: 0.68rem; font-weight: 700;
     letter-spacing: 0.12em; text-transform: uppercase;
@@ -235,7 +235,7 @@ def _html_dashboard(token: str) -> str:
   .grid-2 {{ display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }}
   .grid-3 {{ display: grid; grid-template-columns: 2fr 1fr; gap: 14px; }}
 
-  /* PAINÃIS */
+  /* PAINÉIS */
   .painel {{
     background: var(--surface); border: 1px solid var(--border);
     border-radius: 14px; padding: 20px;
@@ -331,7 +331,7 @@ def _html_dashboard(token: str) -> str:
 
 <!-- HEADER -->
 <header class="header">
-  <div class="logo">ð¿</div>
+  <div class="logo">🌿</div>
   <div>
     <div class="header-title">Poda</div>
     <div class="header-sub">Painel de monitoramento</div>
@@ -342,17 +342,17 @@ def _html_dashboard(token: str) -> str:
       <div class="dot-pulse"></div>
       <span id="status-texto">Carregando...</span>
     </div>
-    <button class="btn-atualizar" onclick="carregar()">â» Atualizar</button>
+    <button class="btn-atualizar" onclick="carregar()">↻ Atualizar</button>
   </div>
 </header>
 
-<!-- CONTEÃDO -->
+<!-- CONTEÚDO -->
 <div class="container">
 
   <!-- LOADING -->
   <div id="loading">
     <div class="spinner"></div>
-    <span>Carregando mÃ©tricas...</span>
+    <span>Carregando métricas...</span>
   </div>
 
   <!-- PAINEL PRINCIPAL -->
@@ -362,62 +362,62 @@ def _html_dashboard(token: str) -> str:
     <div class="section-label">Uso de hoje</div>
     <div class="kpi-grid">
       <div class="kpi">
-        <div class="kpi-icon">ð¬</div>
+        <div class="kpi-icon">💬</div>
         <div class="kpi-label">Mensagens recebidas hoje</div>
-        <div class="kpi-value blue" id="msgs-hoje">â</div>
+        <div class="kpi-value blue" id="msgs-hoje">—</div>
         <div class="kpi-sub">desde meia-noite</div>
       </div>
       <div class="kpi">
-        <div class="kpi-icon">ð¥</div>
-        <div class="kpi-label">UsuÃ¡rios Ãºnicos hoje</div>
-        <div class="kpi-value green" id="usuarios-hoje">â</div>
-        <div class="kpi-sub">nÃºmeros distintos</div>
+        <div class="kpi-icon">👥</div>
+        <div class="kpi-label">Usuários únicos hoje</div>
+        <div class="kpi-value green" id="usuarios-hoje">—</div>
+        <div class="kpi-sub">números distintos</div>
       </div>
       <div class="kpi">
-        <div class="kpi-icon">ð¤</div>
+        <div class="kpi-icon">📤</div>
         <div class="kpi-label">Respostas enviadas</div>
-        <div class="kpi-value" id="msgs-enviadas">â</div>
+        <div class="kpi-value" id="msgs-enviadas">—</div>
         <div class="kpi-sub">total acumulado</div>
       </div>
       <div class="kpi">
-        <div class="kpi-icon">ð¥</div>
+        <div class="kpi-icon">📥</div>
         <div class="kpi-label">Total de mensagens</div>
-        <div class="kpi-value" id="msgs-total">â</div>
+        <div class="kpi-value" id="msgs-total">—</div>
         <div class="kpi-sub">total acumulado</div>
       </div>
       <div class="kpi">
-        <div class="kpi-icon">â ï¸</div>
+        <div class="kpi-icon">⚠️</div>
         <div class="kpi-label">Erros registrados</div>
-        <div class="kpi-value red" id="erros">â</div>
+        <div class="kpi-value red" id="erros">—</div>
         <div class="kpi-sub" id="erros-sub">total acumulado</div>
       </div>
     </div>
 
-    <!-- Taxa de sucesso + HistÃ³rico -->
+    <!-- Taxa de sucesso + Histórico -->
     <div class="section-label">Desempenho</div>
     <div class="grid-3">
-      <!-- HistÃ³rico 7 dias -->
+      <!-- Histórico 7 dias -->
       <div class="painel">
-        <div class="painel-titulo">ð Atividade â Ãºltimos 7 dias</div>
+        <div class="painel-titulo">📅 Atividade — últimos 7 dias</div>
         <canvas id="chart-hist" height="140"></canvas>
       </div>
       <!-- Taxa de sucesso -->
       <div class="painel">
-        <div class="painel-titulo">â Taxa de sucesso</div>
+        <div class="painel-titulo">✅ Taxa de sucesso</div>
         <div class="taxa-circle">
-          <div class="taxa-num" id="taxa-pct">â</div>
+          <div class="taxa-num" id="taxa-pct">—</div>
           <div class="taxa-label">das mensagens respondidas</div>
           <div class="taxa-detalhe">
             <div class="taxa-item">
-              <div class="n" id="taxa-recebidas">â</div>
+              <div class="n" id="taxa-recebidas">—</div>
               <div class="l">Recebidas</div>
             </div>
             <div class="taxa-item">
-              <div class="n" id="taxa-enviadas">â</div>
+              <div class="n" id="taxa-enviadas">—</div>
               <div class="l">Enviadas</div>
             </div>
             <div class="taxa-item">
-              <div class="n" id="taxa-erros">â</div>
+              <div class="n" id="taxa-erros">—</div>
               <div class="l">Erros</div>
             </div>
           </div>
@@ -430,58 +430,58 @@ def _html_dashboard(token: str) -> str:
     <div class="grid-2">
       <!-- Barras -->
       <div class="painel">
-        <div class="painel-titulo">ð DistribuiÃ§Ã£o por tipo</div>
+        <div class="painel-titulo">📊 Distribuição por tipo</div>
         <div id="tipos-barras"></div>
       </div>
       <!-- Donut -->
       <div class="painel">
-        <div class="painel-titulo">ð¥§ ProporÃ§Ã£o</div>
+        <div class="painel-titulo">🥧 Proporção</div>
         <canvas id="chart-donut" height="200"></canvas>
       </div>
     </div>
 
-    <!-- SaÃºde do sistema -->
-    <div class="section-label">SaÃºde do sistema</div>
+    <!-- Saúde do sistema -->
+    <div class="section-label">Saúde do sistema</div>
     <div class="grid-2">
       <div class="painel">
-        <div class="painel-titulo">ð§ ServiÃ§os</div>
+        <div class="painel-titulo">🔧 Serviços</div>
         <div class="status-item">
           <div class="dot" id="dot-redis"></div>
           <span class="status-nome">Redis</span>
-          <span class="status-valor" id="val-redis">â</span>
+          <span class="status-valor" id="val-redis">—</span>
         </div>
         <div class="status-item">
           <div class="dot verde"></div>
           <span class="status-nome">FastAPI / Webhook</span>
-          <span class="status-valor">Online â</span>
+          <span class="status-valor">Online ✓</span>
         </div>
         <div class="status-item">
           <div class="dot verde"></div>
           <span class="status-nome">WhatsApp Cloud API</span>
-          <span class="status-valor">Conectado â</span>
+          <span class="status-valor">Conectado ✓</span>
         </div>
       </div>
       <div class="painel">
-        <div class="painel-titulo">â¹ï¸ InformaÃ§Ãµes tÃ©cnicas</div>
+        <div class="painel-titulo">ℹ️ Informações técnicas</div>
         <div class="status-item">
           <div class="dot verde"></div>
           <span class="status-nome">Uptime do servidor</span>
-          <span class="status-valor" id="val-uptime">â</span>
+          <span class="status-valor" id="val-uptime">—</span>
         </div>
         <div class="status-item">
           <div class="dot verde"></div>
-          <span class="status-nome">Ãltimo evento</span>
-          <span class="status-valor" id="val-ultimo">â</span>
+          <span class="status-nome">Último evento</span>
+          <span class="status-valor" id="val-ultimo">—</span>
         </div>
         <div class="status-item">
           <div class="dot verde"></div>
-          <span class="status-nome">VersÃ£o do Redis</span>
-          <span class="status-valor" id="val-redis-versao">â</span>
+          <span class="status-nome">Versão do Redis</span>
+          <span class="status-valor" id="val-redis-versao">—</span>
         </div>
         <div class="status-item">
           <div class="dot verde"></div>
-          <span class="status-nome">Data de referÃªncia</span>
-          <span class="status-valor" id="val-data">â</span>
+          <span class="status-nome">Data de referência</span>
+          <span class="status-valor" id="val-data">—</span>
         </div>
       </div>
     </div>
@@ -491,7 +491,7 @@ def _html_dashboard(token: str) -> str:
 </div><!-- /container -->
 
 <footer class="footer">
-  Poda Â· Painel de monitoramento Â· AtualizaÃ§Ã£o automÃ¡tica a cada 30 segundos
+  Poda · Painel de monitoramento · Atualização automática a cada 30 segundos
   <br><span id="ultima-atualizacao" style="margin-top:4px;display:inline-block"></span>
 </footer>
 
@@ -500,7 +500,7 @@ const TOKEN = '{token}';
 let chartHist = null;
 let chartDonut = null;
 
-// RelÃ³gio em tempo real
+// Relógio em tempo real
 function atualizarHora() {{
   const agora = new Date();
   document.getElementById('hora-atual').textContent =
@@ -509,13 +509,13 @@ function atualizarHora() {{
 atualizarHora();
 setInterval(atualizarHora, 1000);
 
-// Formata nÃºmero com separador de milhar
+// Formata número com separador de milhar
 function fmt(n) {{
-  if (n == null) return 'â';
+  if (n == null) return '—';
   return Number(n).toLocaleString('pt-BR');
 }}
 
-// Anima nÃºmero de 0 atÃ© o valor
+// Anima número de 0 até o valor
 function animarNumero(el, valor, sufixo) {{
   sufixo = sufixo || '';
   const duracao = 600;
@@ -532,12 +532,12 @@ function animarNumero(el, valor, sufixo) {{
 
 // Cores dos tipos
 const TIPOS_CONFIG = [
-  {{ chave: 'url',      nome: 'URLs processadas',   emoji: 'ð', cor: '#60a5fa' }},
-  {{ chave: 'pdf',      nome: 'PDFs processados',   emoji: 'ð', cor: '#a78bfa' }},
-  {{ chave: 'texto',    nome: 'Textos analisados',  emoji: 'ð', cor: '#34d399' }},
-  {{ chave: 'comando',  nome: 'Comandos usados',    emoji: 'â¡', cor: '#fbbf24' }},
-  {{ chave: 'saudacao', nome: 'SaudaÃ§Ãµes',          emoji: 'ð', cor: '#f472b6' }},
-  {{ chave: 'invalido', nome: 'NÃ£o reconhecidos',   emoji: 'â', cor: '#94a3b8' }},
+  {{ chave: 'url',      nome: 'URLs processadas',   emoji: '🔗', cor: '#60a5fa' }},
+  {{ chave: 'pdf',      nome: 'PDFs processados',   emoji: '📄', cor: '#a78bfa' }},
+  {{ chave: 'texto',    nome: 'Textos analisados',  emoji: '📝', cor: '#34d399' }},
+  {{ chave: 'comando',  nome: 'Comandos usados',    emoji: '⚡', cor: '#fbbf24' }},
+  {{ chave: 'saudacao', nome: 'Saudações',          emoji: '👋', cor: '#f472b6' }},
+  {{ chave: 'invalido', nome: 'Não reconhecidos',   emoji: '❓', cor: '#94a3b8' }},
 ];
 
 async function carregar() {{
@@ -570,7 +570,7 @@ async function carregar() {{
 
     // Erros sub-label
     if (erros > 0) {{
-      document.getElementById('erros-sub').textContent = 'â ï¸ atenÃ§Ã£o necessÃ¡ria';
+      document.getElementById('erros-sub').textContent = '⚠️ atenção necessária';
       document.getElementById('erros-sub').style.color = 'var(--yellow)';
     }}
 
@@ -579,7 +579,7 @@ async function carregar() {{
     const textoStatus = document.getElementById('status-texto');
     if (d.redis_disponivel && erros === 0) {{
       pill.className = 'status-pill';
-      textoStatus.textContent = 'SaudÃ¡vel';
+      textoStatus.textContent = 'Saudável';
     }} else if (!d.redis_disponivel) {{
       pill.className = 'status-pill erro';
       textoStatus.textContent = 'Redis offline';
@@ -588,7 +588,7 @@ async function carregar() {{
       textoStatus.textContent = 'Erros detectados';
     }}
 
-    // Tipos â barras de progresso
+    // Tipos — barras de progresso
     const tipos = d.tipos || {{}};
     const totalTipos = TIPOS_CONFIG.reduce((s, tc) => s + (tipos[tc.chave] ?? 0), 0) || 1;
     const barrasEl = document.getElementById('tipos-barras');
@@ -641,7 +641,7 @@ async function carregar() {{
       }}
     }});
 
-    // HistÃ³rico 7 dias
+    // Histórico 7 dias
     const hist = d.historico_7_dias ?? [];
     const labels = hist.map(h => {{
       const [, m, d2] = h.data.split('-');
@@ -665,7 +665,7 @@ async function carregar() {{
             yAxisID: 'y',
           }},
           {{
-            label: 'UsuÃ¡rios',
+            label: 'Usuários',
             data: usersDados,
             type: 'line',
             borderColor: '#22c55e',
@@ -702,30 +702,30 @@ async function carregar() {{
             ticks: {{ color: '#22c55e', font: {{ size: 11 }} }},
             grid: {{ display: false }}, beginAtZero: true,
             position: 'right',
-            title: {{ display: true, text: 'UsuÃ¡rios', color: '#22c55e', font: {{ size: 10 }} }}
+            title: {{ display: true, text: 'Usuários', color: '#22c55e', font: {{ size: 10 }} }}
           }},
         }}
       }}
     }});
 
-    // SaÃºde do sistema
+    // Saúde do sistema
     const redisOk = d.redis_disponivel;
     document.getElementById('dot-redis').className = 'dot ' + (redisOk ? 'verde' : 'vermelho');
-    document.getElementById('val-redis').textContent = redisOk ? 'Online â' : 'Offline â';
-    document.getElementById('val-uptime').textContent = d.uptime ?? 'â';
+    document.getElementById('val-redis').textContent = redisOk ? 'Online ✓' : 'Offline ✗';
+    document.getElementById('val-uptime').textContent = d.uptime ?? '—';
     document.getElementById('val-ultimo').textContent = d.ultimo_evento
       ? d.ultimo_evento.replace('T', ' ').substring(0, 19)
-      : 'â';
-    document.getElementById('val-redis-versao').textContent = d.redis_versao ?? 'â';
-    document.getElementById('val-data').textContent = d.data_hoje ?? 'â';
+      : '—';
+    document.getElementById('val-redis-versao').textContent = d.redis_versao ?? '—';
+    document.getElementById('val-data').textContent = d.data_hoje ?? '—';
 
     // Footer
     document.getElementById('ultima-atualizacao').textContent =
-      'Ãltima atualizaÃ§Ã£o: ' + new Date().toLocaleTimeString('pt-BR');
+      'Última atualização: ' + new Date().toLocaleTimeString('pt-BR');
 
   }} catch (e) {{
     document.getElementById('loading').innerHTML =
-      '<span style="color:var(--red)">â Erro ao carregar mÃ©tricas: ' + e.message + '</span>';
+      '<span style="color:var(--red)">❌ Erro ao carregar métricas: ' + e.message + '</span>';
   }}
 }}
 
