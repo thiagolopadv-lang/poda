@@ -12,6 +12,7 @@ from utils.detector import detectar_tipo, extrair_url, ContentType
 from utils.formatter import formatar_nao_suportado
 from services.whatsapp_api import enviar_texto, marcar_como_lida
 from services.rate_limiter import rate_limiter
+from services import metrics
 from routes import url_handler, pdf_handler, token_handler
 
 logger = logging.getLogger("poda.whatsapp")
@@ -128,6 +129,7 @@ async def _rotear_mensagem(numero: str, message: dict) -> None:
     logger.info(f"Mensagem de {numero}: tipo={tipo}")
 
     if tipo == ContentType.URL:
+        await metrics.registrar_mensagem_recebida(numero, "url")
         body_text = message.get("text", {}).get("body", "")
         url = extrair_url(body_text)
         if url:
@@ -135,6 +137,7 @@ async def _rotear_mensagem(numero: str, message: dict) -> None:
             await url_handler.processar_url(numero, url)
 
     elif tipo == ContentType.PDF:
+        await metrics.registrar_mensagem_recebida(numero, "pdf")
         media_id = message.get("document", {}).get("id")
         if media_id:
             await enviar_texto(numero, "⏳ _Convertendo o PDF..._")
@@ -145,7 +148,8 @@ async def _rotear_mensagem(numero: str, message: dict) -> None:
         if body_text.strip():
             await token_handler.processar_texto(numero, body_text)
         else:
-            await enviar_texto(numero, formatar_nao_suportado())
+            await enviar_texto(numero, await metrics.registrar_mensagem_recebida(numero, "invalido")
+        formatar_nao_suportado())
 
     elif tipo == ContentType.UNSUPPORTED:
         raw_type = message.get("type", "")
