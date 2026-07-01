@@ -1,5 +1,5 @@
 """
-config.py â VariÃ¡veis de ambiente e configuraÃ§Ãµes globais
+config.py — Variáveis de ambiente e configurações globais
 """
 
 import os
@@ -22,19 +22,48 @@ class Settings(BaseSettings):
     # LlamaParse (fallback premium para PDFs complexos)
     LLAMA_CLOUD_API_KEY: str = os.getenv("LLAMA_CLOUD_API_KEY", "")
 
-    # Limites do plano Free (por nÃºmero de telefone por dia)
+    # Limites do plano Free (por número de telefone por dia)
     FREE_URL_LIMIT_PER_DAY: int = 5
     FREE_PDF_LIMIT_PER_DAY: int = 2
+
+    # Limites do plano Pro (por número de telefone por dia)
+    PRO_URL_LIMIT_PER_DAY: int = 50
+    PRO_PDF_LIMIT_PER_DAY: int = 20
 
     # Monitoramento de erros
     SENTRY_DSN: str = os.getenv("SENTRY_DSN", "")
 
-    # Taxa de cÃ¢mbio USD â BRL (fixada ou atualizada via env)
-    USD_TO_BRL: float = float(os.getenv("USD_TO_BRL", "5.70"))
+    # Taxa de câmbio USD → BRL (fixada ou atualizada via cron)
+    USD_BRL: float = 5.0
 
-    # Redis (para rate limiter persistente entre deploys)
+    # Redis
     REDIS_URL: str = os.getenv("REDIS_URL", "")
+
+    # Dashboard
     DASHBOARD_TOKEN: str = os.getenv("DASHBOARD_TOKEN", "poda_dash_2024")
+
+    # ---------------------------------------------------------------
+    # Pagamentos via Mercado Pago (PIX)
+    # ---------------------------------------------------------------
+    MERCADOPAGO_ACCESS_TOKEN: str = os.getenv("MERCADOPAGO_ACCESS_TOKEN", "")
+
+    # Chave PIX para fallback (estática) — email, CPF, telefone ou aleatória
+    PIX_CHAVE: str = os.getenv("PIX_CHAVE", "")
+    PIX_BENEFICIARIO: str = os.getenv("PIX_BENEFICIARIO", "Poda")
+
+    # Preços dos planos (em reais)
+    PLANO_PRO_PRECO: float = 19.00
+    PLANO_EQUIPE_PRECO: float = 79.00
+
+    # Duração dos planos (em dias)
+    PLANO_DIAS: int = 30
+
+    # URL base do webhook (Railway)
+    BASE_URL: str = os.getenv("BASE_URL", "")
+
+    class Config:
+        env_file = ".env"
+        extra = "ignore"
 
 
 settings = Settings()
