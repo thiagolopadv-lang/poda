@@ -5,6 +5,7 @@ Responsável por enviar mensagens, fazer upload de mídias e baixar arquivos.
 
 import logging
 import httpx
+from services import metrics
 
 from config import settings
 
@@ -36,6 +37,7 @@ async def enviar_texto(numero: str, mensagem: str) -> bool:
             return False
 
     logger.info(f"Mensagem enviada para {numero}")
+    await metrics.registrar_mensagem_enviada()
     return True
 
 
