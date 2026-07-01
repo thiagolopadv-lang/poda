@@ -148,12 +148,13 @@ async def _rotear_mensagem(numero: str, message: dict) -> None:
         if body_text.strip():
             await token_handler.processar_texto(numero, body_text)
         else:
-            await enviar_texto(numero, await metrics.registrar_mensagem_recebida(numero, "invalido")
-        formatar_nao_suportado())
+            await metrics.registrar_mensagem_recebida(numero, "invalido")
+            await enviar_texto(numero, formatar_nao_suportado())
 
     elif tipo == ContentType.UNSUPPORTED:
         raw_type = message.get("type", "")
         resposta = formatar_nao_suportado(raw_type)
+        await metrics.registrar_mensagem_recebida(numero, "invalido")
         if resposta:  # Reações retornam string vazia — não responder
             await enviar_texto(numero, resposta)
 
