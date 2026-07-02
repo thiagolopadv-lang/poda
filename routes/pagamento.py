@@ -4,7 +4,7 @@ routes/pagamento.py — Webhook e status de pagamento Asaas
 import logging
 from fastapi import APIRouter, Request, HTTPException
 from services.pagamento import criar_cobranca_pix, verificar_pagamento
-from services.planos import ativar_plano
+from services.rate_limiter import rate_limiter
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/pagamento", tags=["pagamento"])
@@ -14,8 +14,7 @@ router = APIRouter(prefix="/api/pagamento", tags=["pagamento"])
 async def webhook_asaas(request: Request):
     """
     Recebe eventos do Asaas.
-    Formato esperado:
-      {"event": "PAYMENT_RECEIVED", "payment": {"id": "...", "externalReference": "phone|plan", "status": "RECEIVED"}}
+    Formato: {"event": "PAYMENT_RECEIVED", "payment": {"externalReference": "phone|plan", ...}}
     """
     try:
         payload = await request.json()
@@ -25,14 +24,14 @@ async def webhook_asaas(request: Request):
     event = payload.get("event", "")
     payment = payload.get("payment", {})
 
-    logger.info(f"Asaas webhook recebido: event={event}, payment_id={payment.get('id')}")
+    logger.info(f"Asaas webhook: event={event}, payment_id={payment.get('id')}")
 
     if event == "PAYMENT_RECEIVED":
         external_ref = payment.get("externalReference", "")
         parts = external_ref.split("|")
         if len(parts) == 2:
             telefone, plano = parts
-            await ativar_plano(telefone, plano)
+            await rate_limiter.set_plano(telefone, plano)
             logger.info(f"Plano {plano} ativado para {telefone}")
         else:
             logger.warning(f"externalReference inválido: {external_ref}")
