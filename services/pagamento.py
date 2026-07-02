@@ -100,9 +100,9 @@ async def criar_cobranca_pix(telefone: str, plano: str) -> dict:
 
         return {
             "payment_id": payment_id,
-            "qr_code": qr_data.get("payload", ""),
+            "pix_copia_cola": qr_data.get("payload", ""),
             "qr_code_image": qr_data.get("encodedImage", ""),
-            "valor": valor,
+            "preco": valor,
             "expira_em": vencimento,
         }
 
