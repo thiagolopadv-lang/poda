@@ -19,10 +19,10 @@ logger = logging.getLogger("poda.whatsapp")
 
 router = APIRouter()
 
-# Saudações → mensagem de boas-vindas
-SAUDACOES = {"oi", "olá", "ola", "hello", "hi", "hey", "oie", "bom dia", "boa tarde", "boa noite"}
+# TTL da chave de estado pendente (10 minutos)
+PENDING_CPF_TTL = 600
 
-# Comandos especiais
+SAUDACOES = {"oi", "olá", "ola", "hello", "hi", "hey", "oie", "bom dia", "boa tarde", "boa noite"}
 COMANDOS = {"/status", "/ajuda", "/help", "/planos", "/plano", "/pro", "/assinar"}
 
 MENSAGEM_BOAS_VINDAS = (
@@ -75,9 +75,7 @@ async def webhook_receber(request: Request, background_tasks: BackgroundTasks):
     except Exception:
         return JSONResponse(status_code=400, content={"error": "Invalid JSON"})
 
-    # Processar em background para responder < 1s à Meta
     background_tasks.add_task(_processar_evento, body)
-
     return JSONResponse(status_code=200, content={"status": "ok"})
 
 
@@ -101,9 +99,7 @@ async def _processar_evento(body: dict) -> None:
                     if not numero:
                         continue
 
-                    # Marcar como lida (feedback visual para o usuário)
                     await marcar_como_lida(numero, message_id)
-
                     await _rotear_mensagem(numero, msg)
 
     except Exception as e:
@@ -123,10 +119,19 @@ async def _rotear_mensagem(numero: str, message: dict) -> None:
             await enviar_texto(numero, MENSAGEM_BOAS_VINDAS)
             return
 
-        # Comandos especiais
+        # Comandos especiais — têm prioridade sobre estado pendente
         primeiro_token = body_lower.split()[0] if body_lower else ""
         if primeiro_token in COMANDOS:
+            # Se o usuário manda /assinar novamente, limpa estado pendente
+            if primeiro_token == "/assinar":
+                await _limpar_pendente(numero)
             await _processar_comando(numero, primeiro_token, body_lower)
+            return
+
+        # Verificar se há estado pendente (aguardando CPF/CNPJ)
+        pending = await _get_pendente(numero)
+        if pending:
+            await _processar_cpf_pendente(numero, body_text, pending)
             return
 
         tipo = detectar_tipo(message)
@@ -134,7 +139,6 @@ async def _rotear_mensagem(numero: str, message: dict) -> None:
 
         if tipo == ContentType.URL:
             await metrics.registrar_mensagem_recebida(numero, "url")
-            body_text = message.get("text", {}).get("body", "")
             url = extrair_url(body_text)
             if url:
                 await enviar_texto(numero, "⏳ _Processando o link..._")
@@ -148,7 +152,6 @@ async def _rotear_mensagem(numero: str, message: dict) -> None:
                 await pdf_handler.processar_pdf(numero, media_id)
 
         elif tipo == ContentType.TEXT:
-            body_text = message.get("text", {}).get("body", "")
             if body_text.strip():
                 await token_handler.processar_texto(numero, body_text)
         else:
@@ -161,11 +164,32 @@ async def _rotear_mensagem(numero: str, message: dict) -> None:
             raw_type = message.get("type", "")
             resposta = formatar_nao_suportado(raw_type)
             await metrics.registrar_mensagem_recebida(numero, "invalido")
-            if resposta:  # Reações retornam string vazia — não responder
+            if resposta:
                 await enviar_texto(numero, resposta)
         else:
             await enviar_texto(numero, formatar_nao_suportado())
 
+
+# ─── Helpers de estado pendente (Redis) ──────────────────────────────────────
+
+async def _get_pendente(numero: str) -> str:
+    """Retorna o plano pendente para o número, ou '' se não houver."""
+    try:
+        val = await rate_limiter.redis.get(f"pending_cpf:{numero}")
+        return val.decode() if val else ""
+    except Exception:
+        return ""
+
+
+async def _limpar_pendente(numero: str) -> None:
+    """Remove o estado pendente do número."""
+    try:
+        await rate_limiter.redis.delete(f"pending_cpf:{numero}")
+    except Exception:
+        pass
+
+
+# ─── Handlers de comando ──────────────────────────────────────────────────────
 
 async def _processar_comando(numero: str, comando: str, texto_completo: str = "") -> None:
     """Processa comandos especiais do bot."""
@@ -215,7 +239,7 @@ async def _processar_comando(numero: str, comando: str, texto_completo: str = ""
 
 
 async def _processar_assinatura(numero: str, plano: str) -> None:
-    """Gera cobrança PIX e envia o código para o usuário."""
+    """Inicia o fluxo de assinatura: valida plano e solicita CPF/CNPJ."""
     plano = plano.lower().strip()
 
     if plano not in ("pro", "equipe"):
@@ -231,24 +255,58 @@ async def _processar_assinatura(numero: str, plano: str) -> None:
         )
         return
 
+    # Salvar plano no Redis e pedir CPF/CNPJ
+    try:
+        await rate_limiter.redis.setex(f"pending_cpf:{numero}", PENDING_CPF_TTL, plano)
+    except Exception as e:
+        logger.error(f"Erro ao salvar estado pendente para {numero}: {e}")
+
+    nome_plano = "Pro ⚡ (R$19/mês)" if plano == "pro" else "Equipe 👥 (R$79/mês)"
+    await enviar_texto(
+        numero,
+        f"💳 *Plano {nome_plano}*\n\n"
+        "Para gerar o PIX, preciso do seu *CPF ou CNPJ*.\n\n"
+        "_Digite apenas os números (sem pontos ou traços):_",
+    )
+
+
+async def _processar_cpf_pendente(numero: str, texto: str, plano: str) -> None:
+    """Valida CPF/CNPJ recebido e gera a cobrança PIX."""
+    cpf_cnpj = "".join(c for c in texto if c.isdigit())
+
+    if len(cpf_cnpj) not in (11, 14):
+        await enviar_texto(
+            numero,
+            "❌ CPF ou CNPJ inválido.\n\n"
+            "Por favor, envie *apenas os números*:\n"
+            " • CPF: 11 dígitos\n"
+            " • CNPJ: 14 dígitos\n\n"
+            "_Ou envie /assinar para recomeçar._",
+        )
+        return
+
+    # Limpar estado pendente antes de processar
+    await _limpar_pendente(numero)
+
     await enviar_texto(numero, "⏳ _Gerando cobrança PIX..._")
 
     try:
         from services.pagamento import criar_cobranca_pix
-
-        resultado = await criar_cobranca_pix(numero, plano)
+        resultado = await criar_cobranca_pix(numero, plano, cpf_cnpj)
     except Exception as e:
         logger.error(f"Erro ao criar cobrança PIX para {numero}: {e}", exc_info=True)
         await enviar_texto(
             numero,
-            "❌ Erro ao gerar cobrança. Tente novamente em instantes.",
+            "❌ Erro ao gerar cobrança. Tente novamente: */assinar "
+            + plano
+            + "*",
         )
         return
 
     if not resultado or not resultado.get("pix_copia_cola"):
         await enviar_texto(
             numero,
-            "❌ Não foi possível gerar o PIX agora. Tente novamente.",
+            "❌ Não foi possível gerar o PIX agora. Tente: */assinar " + plano + "*",
         )
         return
 
@@ -260,7 +318,7 @@ async def _processar_assinatura(numero: str, plano: str) -> None:
     mensagem = (
         f"💳 *PIX — Plano {nome_plano}*\n\n"
         f"Valor: *R${float(preco):.2f}*\n"
-        f"Validade: 30 minutos\n\n"
+        f"Validade: 24 horas\n\n"
         f"Copie o código PIX abaixo e pague no seu banco:\n\n"
         f"```\n{pix}\n```\n\n"
         f"✅ Após o pagamento, seu plano é ativado automaticamente.\n"
