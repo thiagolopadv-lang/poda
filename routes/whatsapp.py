@@ -176,7 +176,7 @@ async def _get_pendente(numero: str) -> str:
     """Retorna o plano pendente para o número, ou '' se não houver."""
     try:
         val = await rate_limiter.redis.get(f"pending_cpf:{numero}")
-        return val.decode() if val else ""
+        return val if val else ""
     except Exception:
         return ""
 
