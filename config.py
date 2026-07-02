@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     # ---------------------------------------------------------------
     ASAAS_ACCESS_TOKEN: str = os.getenv("ASAAS_ACCESS_TOKEN", "")
 
+    # Token de autenticação do webhook Asaas
+    ASAAS_WEBHOOK_TOKEN: str = os.getenv("ASAAS_WEBHOOK_TOKEN", "")
+
     # Chave PIX estática — email, CPF, telefone ou aleatória
     PIX_CHAVE: str = os.getenv("PIX_CHAVE", "")
     PIX_BENEFICIARIO: str = os.getenv("PIX_BENEFICIARIO", "Poda")
