@@ -1,9 +1,12 @@
 """
 services/pagamento.py — Integração PIX via Asaas
 """
+import logging
 import httpx
 from datetime import date, timedelta
 from config import settings
+
+logger = logging.getLogger(__name__)
 
 ASAAS_BASE_URL = "https://api.asaas.com/v3"
 
@@ -15,29 +18,45 @@ def _headers() -> dict:
     }
 
 
-async def _get_ou_criar_cliente(telefone: str) -> str:
-    """Busca ou cria cliente no Asaas pelo telefone."""
-    async with httpx.AsyncClient(timeout=20) as client:
-        # Buscar cliente existente
-        resp = await client.get(
-            f"{ASAAS_BASE_URL}/customers",
-            headers=_headers(),
-            params={"mobilePhone": telefone},
-        )
-        data = resp.json()
-        if data.get("data"):
-            return data["data"][0]["id"]
+def _assert_ok(resp: httpx.Response, contexto: str) -> dict:
+    """Lança exceção detalhada se a resposta Asaas indicar erro."""
+    data = resp.json()
+    if resp.status_code >= 400 or "errors" in data:
+        erros = data.get("errors", [{"description": str(data)}])
+        msgs = "; ".join(e.get("description", str(e)) for e in erros)
+        raise ValueError(f"Asaas [{contexto}] HTTP {resp.status_code}: {msgs}")
+    return data
 
-        # Criar novo cliente
-        resp = await client.post(
-            f"{ASAAS_BASE_URL}/customers",
-            headers=_headers(),
-            json={
-                "name": f"Cliente {telefone}",
-                "mobilePhone": telefone,
-            },
-        )
-        return resp.json()["id"]
+
+async def _get_ou_criar_cliente(telefone: str, client: httpx.AsyncClient) -> str:
+    """Busca ou cria cliente no Asaas pelo telefone."""
+    # Normalizar telefone: apenas dígitos
+    fone = "".join(c for c in telefone if c.isdigit())
+
+    # Buscar cliente existente pelo telefone
+    resp = await client.get(
+        f"{ASAAS_BASE_URL}/customers",
+        headers=_headers(),
+        params={"mobilePhone": fone},
+    )
+    data = resp.json()
+    if data.get("data"):
+        logger.info(f"Cliente Asaas encontrado: {data['data'][0]['id']}")
+        return data["data"][0]["id"]
+
+    # Criar novo cliente (cpfCnpj opcional — Asaas aceita sem ele)
+    resp = await client.post(
+        f"{ASAAS_BASE_URL}/customers",
+        headers=_headers(),
+        json={
+            "name": f"WhatsApp {fone}",
+            "mobilePhone": fone,
+            "notificationDisabled": True,
+        },
+    )
+    cliente = _assert_ok(resp, "criar_cliente")
+    logger.info(f"Cliente Asaas criado: {cliente['id']}")
+    return cliente["id"]
 
 
 async def criar_cobranca_pix(telefone: str, plano: str) -> dict:
@@ -50,11 +69,10 @@ async def criar_cobranca_pix(telefone: str, plano: str) -> dict:
         "equipe": settings.PLANO_EQUIPE_PRECO,
     }
     valor = precos.get(plano.lower(), settings.PLANO_PRO_PRECO)
+    vencimento = (date.today() + timedelta(days=1)).isoformat()
 
-    customer_id = await _get_ou_criar_cliente(telefone)
-
-    async with httpx.AsyncClient(timeout=20) as client:
-        vencimento = (date.today() + timedelta(days=1)).isoformat()
+    async with httpx.AsyncClient(timeout=30) as client:
+        customer_id = await _get_ou_criar_cliente(telefone, client)
 
         # Criar cobrança PIX
         resp = await client.post(
@@ -69,15 +87,16 @@ async def criar_cobranca_pix(telefone: str, plano: str) -> dict:
                 "externalReference": f"{telefone}|{plano}",
             },
         )
-        payment = resp.json()
+        payment = _assert_ok(resp, "criar_cobranca")
         payment_id = payment["id"]
+        logger.info(f"Cobrança Asaas criada: {payment_id}")
 
         # Buscar QR code PIX
         qr_resp = await client.get(
             f"{ASAAS_BASE_URL}/payments/{payment_id}/pixQrCode",
             headers=_headers(),
         )
-        qr_data = qr_resp.json()
+        qr_data = _assert_ok(qr_resp, "pixQrCode")
 
         return {
             "payment_id": payment_id,
@@ -89,7 +108,7 @@ async def criar_cobranca_pix(telefone: str, plano: str) -> dict:
 
 
 async def verificar_pagamento(payment_id: str) -> str:
-    """Verifica status de pagamento no Asaas. Retorna 'RECEIVED', 'PENDING', etc."""
+    """Verifica status de pagamento no Asaas."""
     async with httpx.AsyncClient(timeout=20) as client:
         resp = await client.get(
             f"{ASAAS_BASE_URL}/payments/{payment_id}",
