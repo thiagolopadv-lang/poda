@@ -1,4 +1,4 @@
-"""
+ """
 config.py — Variáveis de ambiente e configurações globais
 """
 
