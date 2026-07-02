@@ -43,11 +43,11 @@ class Settings(BaseSettings):
     DASHBOARD_TOKEN: str = os.getenv("DASHBOARD_TOKEN", "poda_dash_2024")
 
     # ---------------------------------------------------------------
-    # Pagamentos via Mercado Pago (PIX)
+    # Pagamentos via Asaas (PIX)
     # ---------------------------------------------------------------
-    MERCADOPAGO_ACCESS_TOKEN: str = os.getenv("MERCADOPAGO_ACCESS_TOKEN", "")
+    ASAAS_ACCESS_TOKEN: str = os.getenv("ASAAS_ACCESS_TOKEN", "")
 
-    # Chave PIX para fallback (estática) — email, CPF, telefone ou aleatória
+    # Chave PIX estática — email, CPF, telefone ou aleatória
     PIX_CHAVE: str = os.getenv("PIX_CHAVE", "")
     PIX_BENEFICIARIO: str = os.getenv("PIX_BENEFICIARIO", "Poda")
 
