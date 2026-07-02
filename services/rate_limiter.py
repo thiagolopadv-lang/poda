@@ -64,6 +64,10 @@ class RateLimiter:
             lambda: {"data": None, "urls": 0, "pdfs": 0}
         )
 
+    @property
+    def redis(self):
+        return _get_redis()
+
     def _chave(self, tipo: str, numero: str) -> str:
         hoje = date.today().isoformat()
         return f"poda:{tipo}:{hoje}:{numero}"
