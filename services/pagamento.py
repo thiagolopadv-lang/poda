@@ -12,8 +12,11 @@ ASAAS_BASE_URL = "https://api.asaas.com/v3"
 
 
 def _headers() -> dict:
+    token = settings.ASAAS_ACCESS_TOKEN
+    if token and not token.startswith("$"):
+        token = "$" + token
     return {
-        "access_token": settings.ASAAS_ACCESS_TOKEN,
+        "access_token": token,
         "Content-Type": "application/json",
     }
 
