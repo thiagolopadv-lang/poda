@@ -5,6 +5,7 @@ import logging
 from fastapi import APIRouter, Request, HTTPException
 from services.pagamento import criar_cobranca_pix, verificar_pagamento
 from services.rate_limiter import rate_limiter
+from config import settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/pagamento", tags=["pagamento"])
@@ -16,6 +17,13 @@ async def webhook_asaas(request: Request):
     Recebe eventos do Asaas.
     Formato: {"event": "PAYMENT_RECEIVED", "payment": {"externalReference": "phone|plan", ...}}
     """
+    # Validar token de autenticação do Asaas
+    if settings.ASAAS_WEBHOOK_TOKEN:
+        token = request.headers.get("access_token", "")
+        if token != settings.ASAAS_WEBHOOK_TOKEN:
+            logger.warning(f"Webhook Asaas rejeitado: token inválido")
+            raise HTTPException(status_code=403, detail="Token inválido")
+
     try:
         payload = await request.json()
     except Exception:
@@ -26,7 +34,7 @@ async def webhook_asaas(request: Request):
 
     logger.info(f"Asaas webhook: event={event}, payment_id={payment.get('id')}")
 
-    if event == "PAYMENT_RECEIVED":
+    if event in ("PAYMENT_RECEIVED", "PAYMENT_CONFIRMED"):
         external_ref = payment.get("externalReference", "")
         parts = external_ref.split("|")
         if len(parts) == 2:
