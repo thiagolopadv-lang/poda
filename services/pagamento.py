@@ -31,12 +31,12 @@ def _assert_ok(resp: httpx.Response, contexto: str) -> dict:
     return data
 
 
-async def _get_ou_criar_cliente(telefone: str, client: httpx.AsyncClient) -> str:
-    """Busca ou cria cliente no Asaas pelo telefone."""
-    # Normalizar telefone: apenas dígitos
+async def _get_ou_criar_cliente(
+    telefone: str, client: httpx.AsyncClient, cpf_cnpj: str = ""
+) -> str:
+    """Busca ou cria cliente no Asaas pelo telefone. Atualiza CPF/CNPJ se necessário."""
     fone = "".join(c for c in telefone if c.isdigit())
 
-    # Buscar cliente existente pelo telefone
     resp = await client.get(
         f"{ASAAS_BASE_URL}/customers",
         headers=_headers(),
@@ -44,28 +44,46 @@ async def _get_ou_criar_cliente(telefone: str, client: httpx.AsyncClient) -> str
     )
     data = resp.json()
     if data.get("data"):
-        logger.info(f"Cliente Asaas encontrado: {data['data'][0]['id']}")
-        return data["data"][0]["id"]
+        customer = data["data"][0]
+        customer_id = customer["id"]
+        logger.info(f"Cliente Asaas encontrado: {customer_id}")
 
-    # Criar novo cliente (cpfCnpj opcional — Asaas aceita sem ele)
+        # Atualizar CPF/CNPJ se o cliente existente não tiver
+        if cpf_cnpj and not customer.get("cpfCnpj"):
+            await client.put(
+                f"{ASAAS_BASE_URL}/customers/{customer_id}",
+                headers=_headers(),
+                json={"cpfCnpj": cpf_cnpj},
+            )
+            logger.info(f"CPF/CNPJ atualizado no cliente {customer_id}")
+
+        return customer_id
+
+    # Criar novo cliente com CPF/CNPJ
+    payload: dict = {
+        "name": f"WhatsApp {fone}",
+        "mobilePhone": fone,
+        "notificationDisabled": True,
+    }
+    if cpf_cnpj:
+        payload["cpfCnpj"] = cpf_cnpj
+
     resp = await client.post(
         f"{ASAAS_BASE_URL}/customers",
         headers=_headers(),
-        json={
-            "name": f"WhatsApp {fone}",
-            "mobilePhone": fone,
-            "notificationDisabled": True,
-        },
+        json=payload,
     )
     cliente = _assert_ok(resp, "criar_cliente")
     logger.info(f"Cliente Asaas criado: {cliente['id']}")
     return cliente["id"]
 
 
-async def criar_cobranca_pix(telefone: str, plano: str) -> dict:
+async def criar_cobranca_pix(
+    telefone: str, plano: str, cpf_cnpj: str = ""
+) -> dict:
     """
     Cria cobrança PIX no Asaas.
-    Retorna: {payment_id, qr_code, qr_code_image, valor, expira_em}
+    Retorna: {payment_id, pix_copia_cola, qr_code_image, preco, expira_em}
     """
     precos = {
         "pro": settings.PLANO_PRO_PRECO,
@@ -75,9 +93,8 @@ async def criar_cobranca_pix(telefone: str, plano: str) -> dict:
     vencimento = (date.today() + timedelta(days=1)).isoformat()
 
     async with httpx.AsyncClient(timeout=30) as client:
-        customer_id = await _get_ou_criar_cliente(telefone, client)
+        customer_id = await _get_ou_criar_cliente(telefone, client, cpf_cnpj)
 
-        # Criar cobrança PIX
         resp = await client.post(
             f"{ASAAS_BASE_URL}/payments",
             headers=_headers(),
@@ -94,7 +111,6 @@ async def criar_cobranca_pix(telefone: str, plano: str) -> dict:
         payment_id = payment["id"]
         logger.info(f"Cobrança Asaas criada: {payment_id}")
 
-        # Buscar QR code PIX
         qr_resp = await client.get(
             f"{ASAAS_BASE_URL}/payments/{payment_id}/pixQrCode",
             headers=_headers(),
@@ -117,5 +133,4 @@ async def verificar_pagamento(payment_id: str) -> str:
             f"{ASAAS_BASE_URL}/payments/{payment_id}",
             headers=_headers(),
         )
-        data = resp.json()
-        return data.get("status", "UNKNOWN")
+        return resp.json().get("status", "UNKNOWN")
