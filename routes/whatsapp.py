@@ -160,7 +160,13 @@ async def _rotear_mensagem(numero: str, message: dict) -> None:
 
     else:
         tipo = detectar_tipo(message)
-        if tipo == ContentType.UNSUPPORTED:
+        if tipo == ContentType.PDF:
+            await metrics.registrar_mensagem_recebida(numero, "pdf")
+            media_id = message.get("document", {}).get("id")
+            if media_id:
+                await enviar_texto(numero, "⏳ _Convertendo o PDF..._")
+                await pdf_handler.processar_pdf(numero, media_id)
+        elif tipo == ContentType.UNSUPPORTED:
             raw_type = message.get("type", "")
             resposta = formatar_nao_suportado(raw_type)
             await metrics.registrar_mensagem_recebida(numero, "invalido")
