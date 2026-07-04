@@ -10,11 +10,10 @@ import tempfile
 logger = logging.getLogger("poda.pdf_parser")
 
 
-async def pdf_para_markdown(pdf_bytes: bytes) -> tuple[str, int, int]:
+async def pdf_para_markdown(pdf_bytes: bytes) -> tuple[str, int]:
     """
     Converte bytes de um PDF em Markdown estruturado.
-    Retorna (markdown, num_paginas, tokens_brutos).
-    tokens_brutos = tokens do texto puro extraído antes da estruturação.
+    Retorna (markdown, num_paginas).
     Tenta cada ferramenta em cascata até obter resultado satisfatório.
     """
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
@@ -22,15 +21,12 @@ async def pdf_para_markdown(pdf_bytes: bytes) -> tuple[str, int, int]:
         tmp_path = tmp.name
 
     try:
-        # Extrai texto bruto para calcular economia de tokens
-        tokens_brutos = _contar_tokens_brutos(tmp_path)
-
         # --- Tentativa 1: PyMuPDF4LLM (PDFs nativos com texto) ---
         resultado = await _tentar_pymupdf4llm(tmp_path)
         if resultado:
             markdown, num_paginas = resultado
             logger.info(f"PyMuPDF4LLM: sucesso — {num_paginas} páginas, {len(markdown)} chars")
-            return markdown, num_paginas, tokens_brutos
+            return markdown, num_paginas
 
         # --- Tentativa 2: Marker (PDFs escaneados / imagens) ---
         logger.info("PyMuPDF4LLM insuficiente. Tentando Marker (OCR)...")
@@ -38,7 +34,7 @@ async def pdf_para_markdown(pdf_bytes: bytes) -> tuple[str, int, int]:
         if resultado:
             markdown, num_paginas = resultado
             logger.info(f"Marker: sucesso — {num_paginas} páginas, {len(markdown)} chars")
-            return markdown, num_paginas, tokens_brutos
+            return markdown, num_paginas
 
         # --- Tentativa 3: LlamaParse (fallback premium) ---
         logger.info("Marker insuficiente. Tentando LlamaParse...")
@@ -46,29 +42,12 @@ async def pdf_para_markdown(pdf_bytes: bytes) -> tuple[str, int, int]:
         if resultado:
             markdown, num_paginas = resultado
             logger.info(f"LlamaParse: sucesso — {num_paginas} páginas, {len(markdown)} chars")
-            return markdown, num_paginas, tokens_brutos
+            return markdown, num_paginas
 
         raise ValueError("Nenhuma ferramenta conseguiu processar o PDF.")
 
     finally:
         os.unlink(tmp_path)  # Sempre deleta o arquivo temporário
-
-
-def _contar_tokens_brutos(caminho: str) -> int:
-    """Extrai texto puro do PDF e conta tokens (antes da estruturação em Markdown)."""
-    try:
-        import pymupdf
-        import tiktoken
-
-        doc = pymupdf.open(caminho)
-        texto_bruto = "\n".join(page.get_text() for page in doc)
-        doc.close()
-
-        enc = tiktoken.get_encoding("cl100k_base")
-        return len(enc.encode(texto_bruto))
-    except Exception as e:
-        logger.warning(f"Não foi possível contar tokens brutos: {e}")
-        return 0
 
 
 async def _tentar_pymupdf4llm(caminho: str) -> tuple[str, int] | None:

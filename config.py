@@ -9,9 +9,10 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     # WhatsApp / Meta
     WHATSAPP_TOKEN: str = os.getenv("WHATSAPP_TOKEN", "")
-    WHATSAPP_VERIFY_TOKEN: str = os.getenv("WHATSAPP_VERIFY_TOKEN", "poda_verify_secret")
+    WHATSAPP_VERIFY_TOKEN: str = os.getenv("WHATSAPP_VERIFY_TOKEN", "")  # OBRIGATÓRIO: defina no Railway
     WHATSAPP_PHONE_NUMBER_ID: str = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
     WHATSAPP_API_VERSION: str = "v19.0"
+    WHATSAPP_APP_SECRET: str = os.getenv("WHATSAPP_APP_SECRET", "")  # segredo do App Meta — obrigatório para validação de assinatura
 
     # Jina Reader
     JINA_API_KEY: str = os.getenv("JINA_API_KEY", "")
@@ -38,9 +39,18 @@ class Settings(BaseSettings):
 
     # Redis
     REDIS_URL: str = os.getenv("REDIS_URL", "")
+    # CRÍTICA-2 / LGPD Art. 46: chave para criptografar CPF/CNPJ em repouso no Redis.
+    # Gere com: python -c "import secrets; print(secrets.token_urlsafe(32))"
+    # OBRIGATÓRIO — configure no Railway antes de subir em produção.
+    REDIS_ENCRYPT_KEY: str = os.getenv("REDIS_ENCRYPT_KEY", "")
 
     # Dashboard
-    DASHBOARD_TOKEN: str = os.getenv("DASHBOARD_TOKEN", "poda_dash_2024")
+    # Credenciais de acesso ao painel (usuário + senha separados)
+    # Configure no Railway: DASHBOARD_USER=admin  DASHBOARD_PASSWORD=sua_senha_segura
+    DASHBOARD_USER: str = os.getenv("DASHBOARD_USER", "")
+    DASHBOARD_PASSWORD: str = os.getenv("DASHBOARD_PASSWORD", "")
+    # Mantido para compatibilidade — será ignorado se DASHBOARD_USER estiver configurado
+    DASHBOARD_TOKEN: str = os.getenv("DASHBOARD_TOKEN", "")
 
     # ---------------------------------------------------------------
     # Pagamentos via Asaas (PIX)
@@ -50,8 +60,7 @@ class Settings(BaseSettings):
     # Token secreto para validar requisições do webhook Asaas
     WEBHOOK_ASAAS_TOKEN: str = os.getenv("WEBHOOK_ASAAS_TOKEN", "")
 
-    # Token de autenticaÃ§Ã£o do webhook Asaas
-    ASAAS_WEBHOOK_TOKEN: str = os.getenv("ASAAS_WEBHOOK_TOKEN", "")
+    # NOTA: ASAAS_WEBHOOK_TOKEN removido — duplicata de WEBHOOK_ASAAS_TOKEN
 
     # Chave PIX estÃ¡tica â email, CPF, telefone ou aleatÃ³ria
     PIX_CHAVE: str = os.getenv("PIX_CHAVE", "")
@@ -63,6 +72,9 @@ class Settings(BaseSettings):
 
     # DuraÃ§Ã£o dos planos (em dias)
     PLANO_DIAS: int = 30
+
+    # Número público do WhatsApp (exibido no frontend)
+    WHATSAPP_PUBLIC_NUMBER: str = os.getenv("WHATSAPP_PUBLIC_NUMBER", "5511955020393")
 
     # URL base do webhook (Railway)
     BASE_URL: str = os.getenv("BASE_URL", "")

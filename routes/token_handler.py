@@ -37,7 +37,7 @@ async def processar_texto(numero: str, texto: str) -> None:
         tokens=resultado["tokens"],
         chars=resultado["chars"],
         custos=resultado["custos"],
-        usd_to_brl=settings.USD_BRL,
+        usd_to_brl=settings.USD_TO_BRL,
     )
 
     await enviar_texto(numero, mensagem)
