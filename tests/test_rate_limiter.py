@@ -48,14 +48,14 @@ class TestUrls:
 
     @pytest.mark.asyncio
     async def test_bloqueia_apos_limite(self, limiter):
-        limite = (await limiter.status_usuario(NUMERO))["limite_urls"]
+        limite = (await limiter.status_usuario(NUMERO))["urls_limite"]
         for _ in range(limite):
             await limiter.registrar_url(NUMERO)
         assert await limiter.pode_processar_url(NUMERO) is False
 
     @pytest.mark.asyncio
     async def test_restantes_nunca_negativo(self, limiter):
-        limite = (await limiter.status_usuario(NUMERO))["limite_urls"]
+        limite = (await limiter.status_usuario(NUMERO))["urls_limite"]
         for _ in range(limite + 5):
             await limiter.registrar_url(NUMERO)
         assert await limiter.urls_restantes(NUMERO) == 0
@@ -77,7 +77,7 @@ class TestPdfs:
 
     @pytest.mark.asyncio
     async def test_bloqueia_apos_limite(self, limiter):
-        limite = (await limiter.status_usuario(NUMERO))["limite_pdfs"]
+        limite = (await limiter.status_usuario(NUMERO))["pdfs_limite"]
         for _ in range(limite):
             await limiter.registrar_pdf(NUMERO)
         assert await limiter.pode_processar_pdf(NUMERO) is False
@@ -95,8 +95,8 @@ class TestStatusUsuario:
         assert "urls_restantes" in status
         assert "pdfs_usados" in status
         assert "pdfs_restantes" in status
-        assert "limite_urls" in status
-        assert "limite_pdfs" in status
+        assert "urls_limite" in status
+        assert "pdfs_limite" in status
 
     @pytest.mark.asyncio
     async def test_contadores_iniciam_zero(self, limiter):
