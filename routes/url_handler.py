@@ -73,7 +73,9 @@ async def processar_url(numero: str, url: str) -> None:
 
     # --- Registrar uso (so apos processamento bem-sucedido) ---
     await rate_limiter.registrar_url(numero)
+    plano = await rate_limiter.get_plano(numero)
     urls_restantes = await rate_limiter.urls_restantes(numero)
+    limite_diario = rate_limiter._limite_url(plano) or settings.FREE_URL_LIMIT_PER_DAY
 
     # --- Calcular metricas de compressao ---
     enc = tiktoken.get_encoding("cl100k_base")
@@ -81,7 +83,7 @@ async def processar_url(numero: str, url: str) -> None:
     tokens_antes = tokens_depois * 5
     tokens_economizados = tokens_antes - tokens_depois
     custo_economizado_usd = (tokens_economizados / 1_000_000) * 2.50
-    custo_economizado_brl = custo_economizado_usd * settings.USD_TO_BRL
+    custo_economizado_brl = custo_economizado_usd * settings.USD_BRL
 
     logger.info(
         "URL convertida com sucesso.",
@@ -99,8 +101,9 @@ async def processar_url(numero: str, url: str) -> None:
         tokens_antes=tokens_antes,
         tokens_depois=tokens_depois,
         custo_economizado_brl=custo_economizado_brl,
+        plano=plano,
         urls_restantes=urls_restantes,
-        limite_diario=settings.FREE_URL_LIMIT_PER_DAY,
+        limite_diario=limite_diario,
     )
 
     if conteudo_separado is None:
