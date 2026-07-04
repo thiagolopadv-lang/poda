@@ -1,5 +1,5 @@
 """
-config.py — Variáveis de ambiente e configurações globais
+config.py â VariÃ¡veis de ambiente e configuraÃ§Ãµes globais
 """
 
 import os
@@ -22,18 +22,18 @@ class Settings(BaseSettings):
     # LlamaParse (fallback premium para PDFs complexos)
     LLAMA_CLOUD_API_KEY: str = os.getenv("LLAMA_CLOUD_API_KEY", "")
 
-    # Limites do plano Free (por número de telefone por dia)
+    # Limites do plano Free (por nÃºmero de telefone por dia)
     FREE_URL_LIMIT_PER_DAY: int = 5
     FREE_PDF_LIMIT_PER_DAY: int = 2
 
-    # Limites do plano Pro (por número de telefone por dia)
+    # Limites do plano Pro (por nÃºmero de telefone por dia)
     PRO_URL_LIMIT_PER_DAY: int = 50
     PRO_PDF_LIMIT_PER_DAY: int = 20
 
     # Monitoramento de erros
     SENTRY_DSN: str = os.getenv("SENTRY_DSN", "")
 
-    # Taxa de câmbio USD → BRL (fixada ou atualizada via cron)
+    # Taxa de cÃ¢mbio USD â BRL (fixada ou atualizada via cron)
     USD_BRL: float = 5.0
 
     # Redis
@@ -47,18 +47,21 @@ class Settings(BaseSettings):
     # ---------------------------------------------------------------
     ASAAS_ACCESS_TOKEN: str = os.getenv("ASAAS_ACCESS_TOKEN", "")
 
-    # Token de autenticação do webhook Asaas
+    # Token secreto para validar requisições do webhook Asaas
+    WEBHOOK_ASAAS_TOKEN: str = os.getenv("WEBHOOK_ASAAS_TOKEN", "")
+
+    # Token de autenticaÃ§Ã£o do webhook Asaas
     ASAAS_WEBHOOK_TOKEN: str = os.getenv("ASAAS_WEBHOOK_TOKEN", "")
 
-    # Chave PIX estática — email, CPF, telefone ou aleatória
+    # Chave PIX estÃ¡tica â email, CPF, telefone ou aleatÃ³ria
     PIX_CHAVE: str = os.getenv("PIX_CHAVE", "")
     PIX_BENEFICIARIO: str = os.getenv("PIX_BENEFICIARIO", "Poda")
 
-    # Preços dos planos (em reais)
+    # PreÃ§os dos planos (em reais)
     PLANO_PRO_PRECO: float = 19.00
     PLANO_EQUIPE_PRECO: float = 79.00
 
-    # Duração dos planos (em dias)
+    # DuraÃ§Ã£o dos planos (em dias)
     PLANO_DIAS: int = 30
 
     # URL base do webhook (Railway)
