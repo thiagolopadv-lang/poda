@@ -1,7 +1,6 @@
 """
 routes/pagamento.py — Webhook e status de pagamento Asaas
 """
-import hmac as _hmac
 import logging
 from fastapi import APIRouter, Request, HTTPException
 from services.pagamento import criar_cobranca_pix, verificar_pagamento
@@ -12,20 +11,15 @@ from config import settings
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/pagamento", tags=["pagamento"])
 
-from config import settings as _settings
-
 NOMES_PLANO = {
     "pro": "Pro ⚡",
     "equipe": "Equipe 👥",
 }
 
-def _limites_plano() -> dict:
-    return {
-        "pro": f"{_settings.PRO_URL_LIMIT_PER_DAY} URLs/dia · {_settings.PRO_PDF_LIMIT_PER_DAY} PDFs/dia",
-        "equipe": "Uso ilimitado · até 5 usuários",
-    }
-
-LIMITES_PLANO = _limites_plano()
+LIMITES_PLANO = {
+    "pro": "50 URLs/dia · 20 PDFs/dia",
+    "equipe": "Uso ilimitado · até 5 usuários",
+}
 
 
 @router.post("/webhook")
@@ -35,22 +29,15 @@ async def webhook_asaas(request: Request):
     Autenticação: token Bearer no header Authorization ou query param ?token=
     Formato: {"event": "PAYMENT_RECEIVED", "payment": {"externalReference": "phone|plan", ...}}
     """
-    # — Validação de segurança (CRÍTICA-1 fix) —
+    # — Validação de segurança —
     secret = settings.WEBHOOK_ASAAS_TOKEN
-    # Fail-secure: bloquear SEMPRE se token não configurado (nunca pular validação)
-    if not secret:
-        logger.error(
-            "WEBHOOK_ASAAS_TOKEN nao configurado — requisicao bloqueada por seguranca. "
-            "Configure a variavel de ambiente no Railway IMEDIATAMENTE."
-        )
-        raise HTTPException(status_code=503, detail="Servico temporariamente indisponivel")
-    # Aceitar token apenas via header Authorization (nunca via query param — evita log de token)
-    auth_header = request.headers.get("Authorization", "")
-    token_recebido = auth_header.replace("Bearer ", "").strip()
-    # Comparacao em tempo constante — evita timing attack
-    if not _hmac.compare_digest(token_recebido, secret):
-        logger.warning("Webhook Asaas rejeitado: token invalido")
-        raise HTTPException(status_code=401, detail="Token invalido")
+    if secret:
+        auth_header = request.headers.get("Authorization", "")
+        token_query = request.query_params.get("token", "")
+        token_recebido = auth_header.replace("Bearer ", "").strip() or token_query
+        if token_recebido != secret:
+            logger.warning(f"Webhook Asaas rejeitado: token inválido")
+            raise HTTPException(status_code=401, detail="Token inválido")
 
     try:
         payload = await request.json()
@@ -68,12 +55,8 @@ async def webhook_asaas(request: Request):
         if len(parts) == 2:
             telefone, plano = parts
             plano = plano.lower().strip()
-            # CRÍTICA-1 fix: validar plano antes de ativar — evita ativacao de planos arbitrarios
-            if plano not in ("pro", "equipe"):
-                logger.warning("Webhook Asaas: plano invalido recebido: %r — ignorado.", plano)
-                return {"status": "ignored"}
             await rate_limiter.set_plano(telefone, plano)
-            logger.info("Plano ativado: sufixo=%s", telefone[-4:] if len(telefone) > 4 else "****")
+            logger.info(f"Plano {plano} ativado para {telefone}")
 
             # Notificar o usuário via WhatsApp
             nome_plano = NOMES_PLANO.get(plano, plano.title())
@@ -97,23 +80,21 @@ async def webhook_asaas(request: Request):
 
 
 @router.get("/status/{payment_id}")
-async def status_pagamento(payment_id: str, request: Request):
-    """
-    Consulta status de um pagamento no Asaas.
-    Requer o mesmo token Bearer do webhook Asaas para evitar enumeracao.
-    """
-    # CRITICA-1 fix: mesma logica fail-secure do webhook
-    secret = settings.WEBHOOK_ASAAS_TOKEN
-    if not secret:
-        raise HTTPException(status_code=503, detail="Servico temporariamente indisponivel")
-    auth_header = request.headers.get("Authorization", "")
-    token_recebido = auth_header.replace("Bearer ", "").strip()
-    if not _hmac.compare_digest(token_recebido, secret):
-        raise HTTPException(status_code=401, detail="Token invalido")
+async def status_pagamento(payment_id: str):
+    """Consulta status de um pagamento no Asaas."""
     status = await verificar_pagamento(payment_id)
     return {"payment_id": payment_id, "status": status}
 
 
-# POST /criar foi REMOVIDO por seguranca (OWASP A01 - Broken Access Control).
-# A criacao de cobracas PIX e acionada exclusivamente pelo fluxo interno
-# do webhook WhatsApp (routes/whatsapp.py -> _processar_comando -> /assinar).
+@router.post("/criar")
+async def criar_pagamento(request: Request):
+    """Cria cobrança PIX para um telefone e plano."""
+    body = await request.json()
+    telefone = body.get("telefone")
+    plano = body.get("plano", "pro")
+
+    if not telefone:
+        raise HTTPException(status_code=400, detail="telefone obrigatório")
+
+    cobranca = await criar_cobranca_pix(telefone, plano)
+    return cobranca

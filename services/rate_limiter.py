@@ -11,7 +11,7 @@ Planos:
 """
 
 import logging
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 from zoneinfo import ZoneInfo
 from collections import defaultdict
 
@@ -52,10 +52,10 @@ def _get_redis():
 
 
 def _segundos_ate_meia_noite() -> int:
-    """P8: TTL até meia-noite real de Brasília (00:00:00 do dia seguinte)."""
     agora = datetime.now(BRASILIA)
-    meia_noite = (agora + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-    return max(60, int((meia_noite - agora).total_seconds()))
+    meia_noite = agora.replace(hour=23, minute=59, second=59, microsecond=0)
+    diff = meia_noite - agora
+    return max(60, int(diff.total_seconds()))
 
 
 class RateLimiter:
@@ -63,7 +63,6 @@ class RateLimiter:
         self._memoria: dict[str, dict] = defaultdict(
             lambda: {"data": None, "urls": 0, "pdfs": 0}
         )
-        self._fallback_ativo: bool = False  # R5: evita logs repetidos
 
     @property
     def redis(self):
@@ -77,17 +76,6 @@ class RateLimiter:
         hoje = date.today()
         if self._memoria[numero]["data"] != hoje:
             self._memoria[numero] = {"data": hoje, "urls": 0, "pdfs": 0}
-
-    def _avisar_fallback(self, operacao: str) -> None:
-        """R5: Emite WARNING uma vez quando o fallback em memória entra em ação."""
-        if not self._fallback_ativo:
-            self._fallback_ativo = True
-            logger.warning(
-                "⚠️  FALLBACK EM MEMÓRIA ATIVO (%s): Redis indisponível. "
-                "Os contadores de uso serão perdidos ao reiniciar o processo. "
-                "Usuários podem exceder limites durante o outage.",
-                operacao,
-            )
 
     def _hoje(self):
         return datetime.now(BRASILIA).date()
@@ -115,36 +103,10 @@ class RateLimiter:
         if redis:
             try:
                 ttl = dias * 86400
-                pipe = redis.pipeline()
-                pipe.setex(f"poda:plano:{numero}", ttl, plano)
-                # P4+P5: remover de todos os planos antes de adicionar
-                # evita ghost records (plano expirado) e dupla entrada (troca de plano)
-                for _p in ("pro", "equipe"):
-                    pipe.srem(f"poda:assinantes:{_p}", numero)
-                pipe.sadd(f"poda:assinantes:{plano}", numero)
-                await pipe.execute()
+                await redis.setex(f"poda:plano:{numero}", ttl, plano)
                 logger.info(f"Plano {plano} ativado para {numero} por {dias} dias.")
             except Exception as e:
                 logger.error(f"Redis erro em set_plano: {e}")
-
-    async def remover_assinante(self, numero: str, plano: str) -> None:
-        """R2: Remove número do índice de assinantes (uso em cancelamento futuro)."""
-        redis = _get_redis()
-        if redis:
-            try:
-                await redis.srem(f"poda:assinantes:{plano}", numero)
-            except Exception as e:
-                logger.warning(f"Redis erro em remover_assinante: {e}")
-
-    async def listar_assinantes(self, plano: str) -> set:
-        """R2: Retorna conjunto de números com o plano informado."""
-        redis = _get_redis()
-        if redis:
-            try:
-                return await redis.smembers(f"poda:assinantes:{plano}")
-            except Exception as e:
-                logger.warning(f"Redis erro em listar_assinantes: {e}")
-        return set()
 
     async def get_plano_expiracao(self, numero: str) -> int:
         redis = _get_redis()
@@ -166,8 +128,7 @@ class RateLimiter:
                 count = await redis.get(self._chave("urls", numero))
                 return (int(count) if count else 0) < limite
             except Exception as e:
-                logger.warning(f"Redis erro em pode_processar_url: {e}.")
-                self._avisar_fallback("pode_processar_url")
+                logger.warning(f"Redis erro em pode_processar_url: {e}. Fallback memoria.")
         self._resetar_memoria(numero)
         return self._memoria[numero]["urls"] < limite
 
@@ -176,14 +137,13 @@ class RateLimiter:
         if redis:
             try:
                 chave = self._chave("urls", numero)
-                # P9: INCR atômico — TTL só na criação (result==1) para evitar race condition
-                result = await redis.incr(chave)
-                if result == 1:
-                    await redis.expire(chave, _segundos_ate_meia_noite())
+                pipe = redis.pipeline()
+                pipe.incr(chave)
+                pipe.expire(chave, _segundos_ate_meia_noite())
+                await pipe.execute()
                 return
             except Exception as e:
-                logger.warning(f"Redis erro em registrar_url: {e}.")
-                self._avisar_fallback("registrar_url")
+                logger.warning(f"Redis erro em registrar_url: {e}. Fallback memoria.")
         self._resetar_memoria(numero)
         self._memoria[numero]["urls"] += 1
 
@@ -199,8 +159,7 @@ class RateLimiter:
                 usadas = int(count) if count else 0
                 return max(0, limite - usadas)
             except Exception as e:
-                logger.warning(f"Redis erro em urls_restantes: {e}.")
-                self._avisar_fallback("urls_restantes")
+                logger.warning(f"Redis erro em urls_restantes: {e}. Fallback memoria.")
         self._resetar_memoria(numero)
         return max(0, limite - self._memoria[numero]["urls"])
 
@@ -226,8 +185,7 @@ class RateLimiter:
                 count = await redis.get(self._chave("pdfs", numero))
                 return (int(count) if count else 0) < limite
             except Exception as e:
-                logger.warning(f"Redis erro em pode_processar_pdf: {e}.")
-                self._avisar_fallback("pode_processar_pdf")
+                logger.warning(f"Redis erro em pode_processar_pdf: {e}. Fallback memoria.")
         self._resetar_memoria(numero)
         return self._memoria[numero]["pdfs"] < limite
 
@@ -236,14 +194,13 @@ class RateLimiter:
         if redis:
             try:
                 chave = self._chave("pdfs", numero)
-                # P9: INCR atômico — TTL só na criação (result==1) para evitar race condition
-                result = await redis.incr(chave)
-                if result == 1:
-                    await redis.expire(chave, _segundos_ate_meia_noite())
+                pipe = redis.pipeline()
+                pipe.incr(chave)
+                pipe.expire(chave, _segundos_ate_meia_noite())
+                await pipe.execute()
                 return
             except Exception as e:
-                logger.warning(f"Redis erro em registrar_pdf: {e}.")
-                self._avisar_fallback("registrar_pdf")
+                logger.warning(f"Redis erro em registrar_pdf: {e}. Fallback memoria.")
         self._resetar_memoria(numero)
         self._memoria[numero]["pdfs"] += 1
 
@@ -259,8 +216,7 @@ class RateLimiter:
                 usadas = int(count) if count else 0
                 return max(0, limite - usadas)
             except Exception as e:
-                logger.warning(f"Redis erro em pdfs_restantes: {e}.")
-                self._avisar_fallback("pdfs_restantes")
+                logger.warning(f"Redis erro em pdfs_restantes: {e}. Fallback memoria.")
         self._resetar_memoria(numero)
         return max(0, limite - self._memoria[numero]["pdfs"])
 
