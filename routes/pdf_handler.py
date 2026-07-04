@@ -26,11 +26,13 @@ async def processar_pdf(numero: str, media_id: str) -> None:
     # --- Verificar limite diario (plano free) ---
     if not await rate_limiter.pode_processar_pdf(numero):
         logger.info("Limite diario de PDFs atingido.", extra=log_ctx)
+        plano = await rate_limiter.get_plano(numero)
+        limite_real = rate_limiter._limite_pdf(plano) or settings.FREE_PDF_LIMIT_PER_DAY
         await enviar_texto(
             numero,
             formatar_limite_atingido(
                 tipo="conversoes de PDF",
-                limite=settings.FREE_PDF_LIMIT_PER_DAY,
+                limite=limite_real,
             ),
         )
         return
