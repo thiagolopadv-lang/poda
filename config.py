@@ -28,7 +28,9 @@ class Settings(BaseSettings):
     FREE_PDF_LIMIT_PER_DAY: int = 2
 
     # Limites do plano Pro (por nÃºmero de telefone por dia)
+    STARTER_URL_LIMIT_PER_DAY: int = 15
     PRO_URL_LIMIT_PER_DAY: int = 50
+    STARTER_PDF_LIMIT_PER_DAY: int = 8
     PRO_PDF_LIMIT_PER_DAY: int = 20
 
     # Monitoramento de erros
@@ -67,6 +69,7 @@ class Settings(BaseSettings):
     PIX_BENEFICIARIO: str = os.getenv("PIX_BENEFICIARIO", "Poda")
 
     # PreÃ§os dos planos (em reais)
+    PLANO_STARTER_PRECO: float = 9.00
     PLANO_PRO_PRECO: float = 19.00
     PLANO_EQUIPE_PRECO: float = 79.00
 

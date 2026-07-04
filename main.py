@@ -17,6 +17,7 @@ from fastapi.responses import PlainTextResponse
 
 from routes.whatsapp import router as whatsapp_router
 from routes.dashboard import router as dashboard_router
+from routes.dashboard_comercial import router as dashboard_comercial_router
 from routes.pagamento import router as pagamento_router
 from config import settings
 
@@ -95,6 +96,7 @@ app = FastAPI(
 
 app.include_router(whatsapp_router)
 app.include_router(dashboard_router)
+app.include_router(dashboard_comercial_router)
 app.include_router(pagamento_router)
 
 @app.get("/health")
