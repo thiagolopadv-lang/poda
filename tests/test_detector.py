@@ -56,12 +56,12 @@ class TestExtrairUrl:
 
     def test_extrai_url_simples(self):
         msg = self._msg("Veja: https://exemplo.com/pagina")
-        assert extrair_url(msg) == "https://exemplo.com/pagina"
+        assert extrair_url(msg["text"]["body"]) == "https://exemplo.com/pagina"
 
     def test_extrai_primeira_url(self):
         msg = self._msg("https://primeiro.com e https://segundo.com")
-        assert extrair_url(msg) == "https://primeiro.com"
+        assert extrair_url(msg["text"]["body"]) == "https://primeiro.com"
 
     def test_sem_url_retorna_none(self):
         msg = self._msg("texto sem link")
-        assert extrair_url(msg) is None
+        assert extrair_url(msg["text"]["body"]) is None
