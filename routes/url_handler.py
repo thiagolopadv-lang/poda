@@ -28,11 +28,13 @@ async def processar_url(numero: str, url: str) -> None:
     # --- Verificar limite diario (plano free) ---
     if not await rate_limiter.pode_processar_url(numero):
         logger.info("Limite diario de URLs atingido.", extra=log_ctx)
+        plano = await rate_limiter.get_plano(numero)
+        limite_real = rate_limiter._limite_url(plano) or settings.FREE_URL_LIMIT_PER_DAY
         await enviar_texto(
             numero,
             formatar_limite_atingido(
                 tipo="conversoes de URL",
-                limite=settings.FREE_URL_LIMIT_PER_DAY,
+                limite=limite_real,
             ),
         )
         return
