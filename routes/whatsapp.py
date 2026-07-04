@@ -116,12 +116,14 @@ async def _rotear_mensagem(numero: str, message: dict) -> None:
 
         # Saudação → boas-vindas
         if body_lower in SAUDACOES or len(body_lower) <= 3:
+            await metrics.registrar_mensagem_recebida(numero, "saudacao")
             await enviar_texto(numero, MENSAGEM_BOAS_VINDAS)
             return
 
         # Comandos especiais — têm prioridade sobre estado pendente
         primeiro_token = body_lower.split()[0] if body_lower else ""
         if primeiro_token in COMANDOS:
+            await metrics.registrar_mensagem_recebida(numero, "comando")
             # Se o usuário manda /assinar novamente, limpa estado pendente
             if primeiro_token == "/assinar":
                 await _limpar_pendente(numero)
@@ -153,6 +155,7 @@ async def _rotear_mensagem(numero: str, message: dict) -> None:
 
         elif tipo == ContentType.TEXT:
             if body_text.strip():
+                await metrics.registrar_mensagem_recebida(numero, "texto")
                 await token_handler.processar_texto(numero, body_text)
         else:
             await metrics.registrar_mensagem_recebida(numero, "invalido")
