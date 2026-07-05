@@ -143,6 +143,10 @@ async def _rotear_mensagem(numero: str, message: dict) -> None:
             await metrics.registrar_mensagem_recebida(numero, "url")
             url = extrair_url(body_text)
             if url:
+                if not await rate_limiter.pode_processar_url(numero):
+                    await enviar_texto(numero, await _msg_limite("url", numero))
+                    return
+                await rate_limiter.registrar_url(numero)
                 await enviar_texto(numero, "⏳ _Processando o link..._")
                 await url_handler.processar_url(numero, url)
 
@@ -150,6 +154,10 @@ async def _rotear_mensagem(numero: str, message: dict) -> None:
             await metrics.registrar_mensagem_recebida(numero, "pdf")
             media_id = message.get("document", {}).get("id")
             if media_id:
+                if not await rate_limiter.pode_processar_pdf(numero):
+                    await enviar_texto(numero, await _msg_limite("pdf", numero))
+                    return
+                await rate_limiter.registrar_pdf(numero)
                 await enviar_texto(numero, "⏳ _Convertendo o PDF..._")
                 await pdf_handler.processar_pdf(numero, media_id)
 
@@ -167,6 +175,10 @@ async def _rotear_mensagem(numero: str, message: dict) -> None:
             await metrics.registrar_mensagem_recebida(numero, "pdf")
             media_id = message.get("document", {}).get("id")
             if media_id:
+                if not await rate_limiter.pode_processar_pdf(numero):
+                    await enviar_texto(numero, await _msg_limite("pdf", numero))
+                    return
+                await rate_limiter.registrar_pdf(numero)
                 await enviar_texto(numero, "⏳ _Convertendo o PDF..._")
                 await pdf_handler.processar_pdf(numero, media_id)
         elif tipo == ContentType.UNSUPPORTED:
@@ -177,6 +189,20 @@ async def _rotear_mensagem(numero: str, message: dict) -> None:
                 await enviar_texto(numero, resposta)
         else:
             await enviar_texto(numero, formatar_nao_suportado())
+
+
+
+async def _msg_limite(tipo: str, numero: str) -> str:
+    """Mensagem de limite diário atingido, com CTA para upgrade se plano free."""
+    plano = await rate_limiter.get_plano(numero)
+    recurso, limite_pro = ("URLs", "50 URLs") if tipo == "url" else ("PDFs", "20 PDFs")
+    msg = (
+        f"⚠️ *Limite diário de {recurso} atingido.*\n"
+        "_Renova automaticamente à meia-noite (horário de Brasília)._"
+    )
+    if plano == "free":
+        msg += f"\n\n👉 Assine o plano Pro para {limite_pro}/dia:\n*/assinar pro*"
+    return msg
 
 
 # ─── Helpers de estado pendente (Redis) ──────────────────────────────────────
