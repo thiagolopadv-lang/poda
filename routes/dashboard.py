@@ -507,7 +507,7 @@ def _html_dashboard() -> str:
     <span class="badge">LIVE</span>
   </div>
   <div class="header-right">
-    <a href="/dashboard/comercial" style="padding:5px 12px;background:#2e7d32;color:#fff;border-radius:8px;text-decoration:none;font-size:.78rem;font-weight:600;white-space:nowrap">&#x1F4C8; Painel Comercial</a>
+    <a href="/dashboard/comercial" onclick="(function(){var t=new URLSearchParams(window.location.search).get('token');if(t){window.location.href='/dashboard/comercial?token='+encodeURIComponent(t);return false;}})();return false;" style="padding:5px 12px;background:#2e7d32;color:#fff;border-radius:8px;text-decoration:none;font-size:.78rem;font-weight:600;white-space:nowrap">&#x1F4C8; Painel Comercial</a>
     <span class="hora" id="hora-atual"></span>
     <button class="btn-action" onclick="confirmarAcao('Redefinir métricas?','Os contadores globais serão zerados. Esta ação não pode ser desfeita.',resetarMetricas)">Redefinir métricas</button>
     <button class="btn-action danger" onclick="confirmarAcao('Encerrar todas as sessões?','Todos os administradores serão desconectados imediatamente.',encerrarTodasSessoes)">Encerrar sessões</button>
