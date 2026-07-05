@@ -1,19 +1,20 @@
 """
 token_counter.py — Contagem de tokens e estimativa de custo
-Usa tiktoken (local, $0) + tokencost (local, $0)
+Usa tiktoken para contar tokens; preços hardcoded por modelo.
 """
 
 import logging
 
 logger = logging.getLogger("poda.token_counter")
 
-# Modelos para exibição na resposta
+# Preços de input em USD por 1 milhão de tokens (fonte: sites oficiais)
+# Atualizar aqui quando os provedores mudarem os preços.
 MODELOS = [
-    ("GPT-4o", "gpt-4o"),
-    ("GPT-4o mini", "gpt-4o-mini"),
-    ("Claude 3.5 Sonnet", "claude-3-5-sonnet-20241022"),
-    ("Claude 3.5 Haiku", "claude-3-5-haiku-20241022"),
-    ("Gemini 1.5 Pro", "gemini-1.5-pro"),
+    ("GPT-4o",            "gpt-4o",                      2.50),
+    ("GPT-4o mini",       "gpt-4o-mini",                 0.15),
+    ("Claude Sonnet 4",   "claude-sonnet-4",             3.00),
+    ("Claude Haiku 4.5",  "claude-haiku-4-5",            0.80),
+    ("Gemini 1.5 Pro",    "gemini-1.5-pro",              1.25),
 ]
 
 
@@ -29,7 +30,6 @@ def analisar_tokens(texto: str) -> dict:
     }
     """
     import tiktoken
-    from tokencost import calculate_prompt_cost
 
     # Contagem de tokens (cl100k_base cobre GPT-4, Claude e a maioria dos modelos)
     enc = tiktoken.get_encoding("cl100k_base")
@@ -38,12 +38,12 @@ def analisar_tokens(texto: str) -> dict:
 
     # Custo estimado por modelo (em USD)
     custos = {}
-    for nome_display, nome_modelo in MODELOS:
+    for nome_display, _nome_api, preco_por_milhao in MODELOS:
         try:
-            custo_usd = float(calculate_prompt_cost(texto, nome_modelo))
+            custo_usd = (tokens / 1_000_000) * preco_por_milhao
             custos[nome_display] = custo_usd
         except Exception as e:
-            logger.warning(f"Não foi possível calcular custo para {nome_modelo}: {e}")
+            logger.warning(f"Erro ao calcular custo para {nome_display}: {e}")
             custos[nome_display] = 0.0
 
     logger.info(f"Token counter: {tokens} tokens, {chars} chars")
