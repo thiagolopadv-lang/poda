@@ -108,7 +108,7 @@ def _html_comercial(token: str) -> str:
 </style>
 </head>
 <body>
-<a class="back" href="/dashboard?token={token}">&#x2190; Voltar ao painel principal</a>
+<a class="back" href="/dashboard" onclick="history.length>1?history.back():(window.location.href='/dashboard');return false;">&#x2190; Voltar ao painel principal</a>
 <h1>&#x1F33F; Poda &mdash; Intelig&ecirc;ncia Comercial</h1>
 <p class="sub" id="ts">Carregando dados...</p>
 
