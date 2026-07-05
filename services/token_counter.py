@@ -11,8 +11,8 @@ logger = logging.getLogger("poda.token_counter")
 MODELOS = [
     ("GPT-4o", "gpt-4o"),
     ("GPT-4o mini", "gpt-4o-mini"),
-    ("Claude Sonnet", "claude-sonnet-4-6"),
-    ("Claude Haiku", "claude-haiku-4-5-20251001"),
+    ("Claude 3.5 Sonnet", "claude-3-5-sonnet-20241022"),
+    ("Claude 3.5 Haiku", "claude-3-5-haiku-20241022"),
     ("Gemini 1.5 Pro", "gemini-1.5-pro"),
 ]
 

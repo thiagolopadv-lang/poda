@@ -58,7 +58,7 @@ async def processar_url(numero: str, url: str) -> None:
     # Custo economizado: tokens_antes - tokens_depois em GPT-4o (input: $2.50/1M tokens)
     tokens_economizados = tokens_antes - tokens_depois
     custo_economizado_usd = (tokens_economizados / 1_000_000) * 2.50
-    custo_economizado_brl = custo_economizado_usd * settings.USD_TO_BRL
+    custo_economizado_brl = custo_economizado_usd * settings.USD_BRL
 
     # --- Formatar e enviar ---
     cabecalho, conteudo_separado = formatar_resultado_url(
