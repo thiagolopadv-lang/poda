@@ -498,6 +498,59 @@ def _html_dashboard() -> str:
 
   #loading { padding: 20px 0; }
   #conteudo { display: none; }
+
+  /* ── Menu mobile ─────────────────────────────────────── */
+  .btn-menu-mobile {
+    display: none;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--muted);
+    width: 34px; height: 30px;
+    cursor: pointer; font-size: 1.2rem; line-height: 1;
+    font-family: inherit; align-items: center; justify-content: center;
+  }
+  .mobile-dropdown { display: none; position: fixed; inset: 0; z-index: 200; }
+  .mobile-dropdown.open { display: block; }
+  .mobile-dropdown-menu {
+    position: absolute; top: 54px; right: 12px;
+    background: #1a1f2e; border: 1px solid var(--border);
+    border-radius: 10px; padding: 6px;
+    display: flex; flex-direction: column; gap: 3px;
+    min-width: 215px;
+    box-shadow: 0 8px 28px rgba(0,0,0,.6);
+  }
+  .mobile-dropdown-menu .btn-action,
+  .mobile-dropdown-menu .btn-logout {
+    width: 100%; text-align: left;
+    padding: 10px 14px; font-size: .85rem;
+    border-radius: 6px; display: block;
+  }
+  .mobile-dropdown-menu .btn-logout { border-color: var(--border); }
+
+  /* ── Breakpoints mobile ──────────────────────────────── */
+  @media (max-width: 600px) {
+    .header { padding: 10px 14px; }
+    .hora { display: none; }
+    .header-btn-desktop { display: none; }
+    .btn-menu-mobile { display: flex; }
+    .header-link-comercial { font-size: .7rem !important; padding: 4px 9px !important; }
+    .container { padding: 16px 12px; }
+    .kpi-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .kpi { padding: 13px 11px; }
+    .kpi-val { font-size: 1.55rem; }
+    .charts { gap: 14px; margin-bottom: 18px; }
+    #health-bar { padding: 5px 14px; font-size: 10px; gap: 10px; }
+    #toast-container { right: 10px; bottom: 10px; left: 10px; }
+    .toast-item { max-width: 100%; }
+    .modal-inner { margin: 12px; }
+    .periodo-btn { padding: 5px 10px; }
+    .periodo-bar { flex-wrap: wrap; }
+  }
 </style>
 </head>
 <body>
@@ -507,13 +560,15 @@ def _html_dashboard() -> str:
     <span class="badge">LIVE</span>
   </div>
   <div class="header-right">
-    <a href="/dashboard/comercial" style="padding:5px 12px;background:#2e7d32;color:#fff;border-radius:8px;text-decoration:none;font-size:.78rem;font-weight:600;white-space:nowrap">&#x1F4C8; Painel Comercial</a>
+    <a href="/dashboard/comercial" class="header-link-comercial" style="padding:5px 12px;background:#2e7d32;color:#fff;border-radius:8px;text-decoration:none;font-size:.78rem;font-weight:600;white-space:nowrap">&#x1F4C8; Painel Comercial</a>
     <span class="hora" id="hora-atual"></span>
-    <button class="btn-action" onclick="confirmarAcao('Redefinir métricas?','Os contadores globais serão zerados. Esta ação não pode ser desfeita.',resetarMetricas)">Redefinir métricas</button>
-    <button class="btn-action danger" onclick="confirmarAcao('Encerrar todas as sessões?','Todos os administradores serão desconectados imediatamente.',encerrarTodasSessoes)">Encerrar sessões</button>
-    <form method="POST" action="/dashboard/logout" style="margin:0">
+    <button class="btn-action header-btn-desktop" onclick="confirmarAcao('Redefinir métricas?','Os contadores globais serão zerados. Esta ação não pode ser desfeita.',resetarMetricas)">Redefinir métricas</button>
+    <button class="btn-action danger header-btn-desktop" onclick="confirmarAcao('Encerrar todas as sessões?','Todos os administradores serão desconectados imediatamente.',encerrarTodasSessoes)">Encerrar sessões</button>
+    <form method="POST" action="/dashboard/logout" class="header-btn-desktop" style="margin:0">
       <button type="submit" class="btn-logout">Sair</button>
     </form>
+    <!-- botão de menu visível só em mobile -->
+    <button class="btn-menu-mobile" onclick="toggleMobileMenu()" aria-label="Menu de ações" aria-expanded="false">⋮</button>
   </div>
 </div>
 
@@ -764,7 +819,21 @@ function confirmarAcao(titulo, corpo, fn) {
 function closeModal() {
   document.getElementById('confirm-modal').style.display = 'none';
 }
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeModal(); closeMobileMenu(); }
+});
+
+// ── Menu mobile
+function toggleMobileMenu() {
+  const m = document.getElementById('mobile-dropdown');
+  const btn = document.querySelector('.btn-menu-mobile');
+  const aberto = m.classList.toggle('open');
+  btn.setAttribute('aria-expanded', aberto ? 'true' : 'false');
+}
+function closeMobileMenu() {
+  document.getElementById('mobile-dropdown').classList.remove('open');
+  document.querySelector('.btn-menu-mobile').setAttribute('aria-expanded', 'false');
+}
 
 // ── Ações protegidas
 async function encerrarTodasSessoes() {
@@ -819,6 +888,17 @@ setInterval(carregar, 30000);
       <button class="btn-mc btn-mc-cancel" onclick="closeModal()">Cancelar</button>
       <button class="btn-mc btn-mc-confirm" id="modal-confirm-btn">Confirmar</button>
     </div>
+  </div>
+</div>
+
+<!-- Dropdown mobile (visível só em telas ≤600px) -->
+<div class="mobile-dropdown" id="mobile-dropdown" onclick="if(event.target===this)closeMobileMenu()">
+  <div class="mobile-dropdown-menu">
+    <button class="btn-action" onclick="closeMobileMenu();confirmarAcao('Redefinir métricas?','Os contadores globais serão zerados. Esta ação não pode ser desfeita.',resetarMetricas)">📊 Redefinir métricas</button>
+    <button class="btn-action danger" onclick="closeMobileMenu();confirmarAcao('Encerrar todas as sessões?','Todos os administradores serão desconectados imediatamente.',encerrarTodasSessoes)">🔓 Encerrar sessões</button>
+    <form method="POST" action="/dashboard/logout" style="margin:0">
+      <button type="submit" class="btn-logout" style="width:100%;text-align:left;padding:10px 14px;font-size:.85rem;border-radius:6px">🚪 Sair</button>
+    </form>
   </div>
 </div>
 </body>
