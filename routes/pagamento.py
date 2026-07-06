@@ -12,11 +12,13 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/pagamento", tags=["pagamento"])
 
 NOMES_PLANO = {
+    "starter": "Starter 🌿",
     "pro": "Pro ⚡",
     "equipe": "Equipe 👥",
 }
 
 LIMITES_PLANO = {
+    "starter": "15 URLs/dia · 8 PDFs/dia",
     "pro": "50 URLs/dia · 20 PDFs/dia",
     "equipe": "Uso ilimitado · até 5 usuários",
 }
@@ -55,6 +57,24 @@ async def webhook_asaas(request: Request):
         if len(parts) == 2:
             telefone, plano = parts
             plano = plano.lower().strip()
+
+            if plano not in NOMES_PLANO:
+                logger.warning(f"Plano desconhecido no webhook: {plano}")
+                return {"status": "ok"}
+
+            # Idempotência: webhook pode ser reenviado pelo Asaas.
+            # Sem isso, cada reenvio somaria +30 dias ao plano.
+            payment_id = payment.get("id", "")
+            if payment_id:
+                try:
+                    chave_dedup = f"poda:pagamento_processado:{payment_id}"
+                    if await rate_limiter.redis.get(chave_dedup):
+                        logger.info(f"Pagamento {payment_id} já processado — ignorando.")
+                        return {"status": "ok"}
+                    await rate_limiter.redis.setex(chave_dedup, 90 * 86400, "1")
+                except Exception as e:
+                    logger.warning(f"Dedup indisponível para {payment_id}: {e}")
+
             await rate_limiter.set_plano(telefone, plano)
             logger.info(f"Plano {plano} ativado para {telefone}")
 
@@ -66,6 +86,8 @@ async def webhook_asaas(request: Request):
                 f"Seu plano *{nome_plano}* está ativo agora.\n\n"
                 f"📊 Seus novos limites:\n"
                 f"   {limites}\n\n"
+                f"⏳ Validade: {settings.PLANO_DIAS} dias\n"
+                f"_Use /status a qualquer momento para acompanhar._\n\n"
                 f"Pode mandar a primeira URL ou PDF! 🌿"
             )
             try:

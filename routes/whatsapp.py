@@ -38,8 +38,9 @@ MENSAGEM_BOAS_VINDAS = (
     "💡 *Comandos úteis:*\n"
     " /status — ver seu uso de hoje\n"
     " /planos — conhecer os planos\n"
-    " /assinar pro — assinar plano Pro (R$19/mês)\n"
-    " /assinar equipe — assinar plano Equipe (R$79/mês)\n\n"
+    " /assinar starter — plano Starter (R$9/mês)\n"
+    " /assinar pro — plano Pro (R$19/mês)\n"
+    " /assinar equipe — plano Equipe (R$79/mês)\n\n"
     "_Mande qualquer um desses agora e eu processo na hora._"
 )
 
@@ -49,6 +50,10 @@ MENSAGEM_PLANOS = (
     " • 5 URLs por dia\n"
     " • 2 PDFs por dia\n"
     " • Contador de tokens ilimitado\n\n"
+    "🌿 *Starter — R$9/mês*\n"
+    " • 15 URLs por dia\n"
+    " • 8 PDFs por dia\n"
+    " • Menos que R$0,30 por dia\n\n"
     "⚡ *Pro — R$19/mês*\n"
     " • 50 URLs por dia\n"
     " • 20 PDFs por dia\n"
@@ -59,9 +64,23 @@ MENSAGEM_PLANOS = (
     " • Até 5 usuários\n"
     " • Webhook/API disponível\n\n"
     "💳 *Pagar via PIX (ativação imediata):*\n"
+    " /assinar starter\n"
     " /assinar pro\n"
     " /assinar equipe"
 )
+
+NOMES_PLANO = {
+    "free": "Free 🆓",
+    "starter": "Starter 🌿",
+    "pro": "Pro ⚡",
+    "equipe": "Equipe 👥",
+}
+
+PRECOS_PLANO_TXT = {
+    "starter": "R$9/mês",
+    "pro": "R$19/mês",
+    "equipe": "R$79/mês",
+}
 
 
 @router.post("/webhook")
@@ -149,6 +168,8 @@ async def _rotear_mensagem(numero: str, message: dict) -> None:
                 await rate_limiter.registrar_url(numero)
                 await enviar_texto(numero, "⏳ _Processando o link..._")
                 await url_handler.processar_url(numero, url)
+                await _avisar_quase_limite(numero, "url")
+                await _avisar_renovacao(numero)
 
         elif tipo == ContentType.PDF:
             await metrics.registrar_mensagem_recebida(numero, "pdf")
@@ -160,6 +181,8 @@ async def _rotear_mensagem(numero: str, message: dict) -> None:
                 await rate_limiter.registrar_pdf(numero)
                 await enviar_texto(numero, "⏳ _Convertendo o PDF..._")
                 await pdf_handler.processar_pdf(numero, media_id)
+                await _avisar_quase_limite(numero, "pdf")
+                await _avisar_renovacao(numero)
 
         elif tipo == ContentType.TEXT:
             if body_text.strip():
@@ -181,6 +204,8 @@ async def _rotear_mensagem(numero: str, message: dict) -> None:
                 await rate_limiter.registrar_pdf(numero)
                 await enviar_texto(numero, "⏳ _Convertendo o PDF..._")
                 await pdf_handler.processar_pdf(numero, media_id)
+                await _avisar_quase_limite(numero, "pdf")
+                await _avisar_renovacao(numero)
         elif tipo == ContentType.UNSUPPORTED:
             raw_type = message.get("type", "")
             resposta = formatar_nao_suportado(raw_type)
@@ -193,16 +218,87 @@ async def _rotear_mensagem(numero: str, message: dict) -> None:
 
 
 async def _msg_limite(tipo: str, numero: str) -> str:
-    """Mensagem de limite diário atingido, com CTA para upgrade se plano free."""
+    """Mensagem de limite diário atingido, com CTA de upgrade escalonado por plano."""
     plano = await rate_limiter.get_plano(numero)
-    recurso, limite_pro = ("URLs", "50 URLs") if tipo == "url" else ("PDFs", "20 PDFs")
+    recurso = "URLs" if tipo == "url" else "PDFs"
     msg = (
         f"⚠️ *Limite diário de {recurso} atingido.*\n"
         "_Renova automaticamente à meia-noite (horário de Brasília)._"
     )
     if plano == "free":
-        msg += f"\n\n👉 Assine o plano Pro para {limite_pro}/dia:\n*/assinar pro*"
+        prox = "15 URLs + 8 PDFs" if tipo == "url" else "8 PDFs + 15 URLs"
+        msg += (
+            f"\n\n👉 Continue agora mesmo com o Starter (R$9/mês — {prox}/dia):\n"
+            "*/assinar starter*\n\n"
+            "Ou vá direto ao Pro (R$19/mês — 50 URLs + 20 PDFs/dia):\n"
+            "*/assinar pro*"
+        )
+    elif plano == "starter":
+        msg += (
+            "\n\n👉 Precisa de mais? O Pro libera 50 URLs + 20 PDFs/dia:\n"
+            "*/assinar pro*"
+        )
+    elif plano == "pro":
+        msg += (
+            "\n\n👉 O plano Equipe tem uso ilimitado:\n"
+            "*/assinar equipe*"
+        )
     return msg
+
+
+async def _avisar_quase_limite(numero: str, tipo: str) -> None:
+    """
+    Avisa o usuário free quando resta apenas 1 uso do dia.
+    Converter ANTES do bloqueio funciona melhor que bloquear de surpresa.
+    """
+    try:
+        plano = await rate_limiter.get_plano(numero)
+        if plano != "free":
+            return
+        if tipo == "url":
+            restantes = await rate_limiter.urls_restantes(numero)
+            recurso = "URL grátis restante"
+        else:
+            restantes = await rate_limiter.pdfs_restantes(numero)
+            recurso = "PDF grátis restante"
+        if restantes == 1:
+            await enviar_texto(
+                numero,
+                f"ℹ️ _Você tem só 1 {recurso} hoje._\n\n"
+                "🌿 O Starter (R$9/mês) libera 15 URLs + 8 PDFs por dia:\n"
+                "*/assinar starter*",
+            )
+    except Exception as e:
+        logger.warning(f"Erro em _avisar_quase_limite para {numero}: {e}")
+
+
+async def _avisar_renovacao(numero: str) -> None:
+    """
+    Aviso proativo de expiração: se o plano pago expira em até 3 dias,
+    envia no máximo 1 lembrete por dia (deduplicado via Redis).
+    """
+    try:
+        plano = await rate_limiter.get_plano(numero)
+        if plano == "free":
+            return
+        ttl = await rate_limiter.get_plano_expiracao(numero)
+        if ttl <= 0 or ttl > 3 * 86400:
+            return
+        chave = f"poda:aviso_renovacao:{numero}"
+        if await rate_limiter.redis.get(chave):
+            return
+        await rate_limiter.redis.setex(chave, 86400, "1")
+        dias = max(1, (ttl + 86399) // 86400)
+        plural = "dia" if dias == 1 else "dias"
+        preco = PRECOS_PLANO_TXT.get(plano, "")
+        await enviar_texto(
+            numero,
+            f"⏳ *Seu plano {NOMES_PLANO.get(plano, plano)} expira em {dias} {plural}.*\n\n"
+            f"Renove agora e os dias restantes são somados ao novo período ({preco}):\n"
+            f"*/assinar {plano}*",
+        )
+    except Exception as e:
+        logger.warning(f"Erro em _avisar_renovacao para {numero}: {e}")
 
 
 # ─── Helpers de estado pendente (Redis) ──────────────────────────────────────
@@ -231,8 +327,7 @@ async def _processar_comando(numero: str, comando: str, texto_completo: str = ""
     if comando == "/status":
         status = await rate_limiter.status_usuario(numero)
         plano = status.get("plano", "free")
-        nomes_plano = {"free": "Free 🆓", "pro": "Pro ⚡", "equipe": "Equipe 👥"}
-        nome_plano = nomes_plano.get(plano, plano.capitalize())
+        nome_plano = NOMES_PLANO.get(plano, plano.capitalize())
 
         urls_limite = status.get("urls_limite") or "∞"
         pdfs_limite = status.get("pdfs_limite") or "∞"
@@ -241,7 +336,20 @@ async def _processar_comando(numero: str, comando: str, texto_completo: str = ""
 
         mensagem = (
             f"📊 *Seu uso hoje ({status['data']})*\n\n"
-            f"🏷️ Plano: *{nome_plano}*\n\n"
+            f"🏷️ Plano: *{nome_plano}*\n"
+        )
+
+        # Dias restantes do plano pago + CTA de renovação
+        dias_restantes = status.get("dias_restantes", 0)
+        if plano != "free":
+            mensagem += f"⏳ Validade: *{dias_restantes} dia(s) restantes*\n"
+            if dias_restantes <= 5:
+                mensagem += (
+                    f"   _Renove com /assinar {plano} — os dias restantes são somados._\n"
+                )
+        mensagem += "\n"
+
+        mensagem += (
             f"🔗 URLs: {status['urls_usadas']}/{urls_limite} usadas"
             f" — {urls_restantes} restantes\n"
             f"📄 PDFs: {status['pdfs_usados']}/{pdfs_limite} usados"
@@ -255,7 +363,7 @@ async def _processar_comando(numero: str, comando: str, texto_completo: str = ""
             mensagem += (
                 "⚠️ _Algum limite foi atingido hoje._\n"
                 "Limite reseta à meia-noite (horário de Brasília).\n\n"
-                "👉 Assine via PIX: */assinar pro*"
+                "👉 Assine via PIX: */assinar starter* (R$9) ou */assinar pro* (R$19)"
             )
         else:
             mensagem += "_Contador de tokens é sempre gratuito e ilimitado._"
@@ -277,11 +385,13 @@ async def _processar_assinatura(numero: str, plano: str) -> None:
     """Inicia o fluxo de assinatura: valida plano e solicita CPF/CNPJ."""
     plano = plano.lower().strip()
 
-    if plano not in ("pro", "equipe"):
+    if plano not in ("starter", "pro", "equipe"):
         await enviar_texto(
             numero,
             "💳 *Assinar o Poda via PIX*\n\n"
             "Escolha seu plano:\n\n"
+            "🌿 */assinar starter* — R$9/mês\n"
+            " • 15 URLs + 8 PDFs por dia\n\n"
             "⚡ */assinar pro* — R$19/mês\n"
             " • 50 URLs + 20 PDFs por dia\n\n"
             "👥 */assinar equipe* — R$79/mês\n"
@@ -296,7 +406,7 @@ async def _processar_assinatura(numero: str, plano: str) -> None:
     except Exception as e:
         logger.error(f"Erro ao salvar estado pendente para {numero}: {e}")
 
-    nome_plano = "Pro ⚡ (R$19/mês)" if plano == "pro" else "Equipe 👥 (R$79/mês)"
+    nome_plano = f"{NOMES_PLANO.get(plano, plano.title())} ({PRECOS_PLANO_TXT.get(plano, '')})"
     await enviar_texto(
         numero,
         f"💳 *Plano {nome_plano}*\n\n"
@@ -345,7 +455,7 @@ async def _processar_cpf_pendente(numero: str, texto: str, plano: str) -> None:
         )
         return
 
-    nome_plano = "Pro ⚡" if plano == "pro" else "Equipe 👥"
+    nome_plano = NOMES_PLANO.get(plano, plano.title())
     preco = resultado.get("preco", 0)
     pix = resultado.get("pix_copia_cola", "")
     payment_id = resultado.get("payment_id", "")

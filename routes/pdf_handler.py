@@ -57,10 +57,14 @@ async def processar_pdf(numero: str, media_id: str) -> None:
     tokens = len(enc.encode(markdown))
 
     # --- Formatar e enviar ---
+    from services.rate_limiter import rate_limiter
+    plano = await rate_limiter.get_plano(numero)
+
     cabecalho, conteudo_separado = formatar_resultado_pdf(
         markdown=markdown,
         num_paginas=num_paginas,
         tokens=tokens,
+        plano=plano,
     )
 
     if conteudo_separado is None:

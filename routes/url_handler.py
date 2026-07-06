@@ -55,17 +55,15 @@ async def processar_url(numero: str, url: str) -> None:
     # Estimar tokens de HTML bruto: média de 5x o Markdown (heurística conservadora)
     tokens_antes = tokens_depois * 5
 
-    # Custo economizado: tokens_antes - tokens_depois em GPT-4o (input: $2.50/1M tokens)
-    tokens_economizados = tokens_antes - tokens_depois
-    custo_economizado_usd = (tokens_economizados / 1_000_000) * 2.50
-    custo_economizado_brl = custo_economizado_usd * settings.USD_BRL
+    # --- Formatar e enviar (economia exibida apenas em %) ---
+    from services.rate_limiter import rate_limiter
+    plano = await rate_limiter.get_plano(numero)
 
-    # --- Formatar e enviar ---
     cabecalho, conteudo_separado = formatar_resultado_url(
         markdown=markdown,
         tokens_antes=tokens_antes,
         tokens_depois=tokens_depois,
-        custo_economizado_brl=custo_economizado_brl,
+        plano=plano,
     )
 
     if conteudo_separado is None:
