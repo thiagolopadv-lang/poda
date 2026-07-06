@@ -42,7 +42,7 @@ MENSAGEM_BOAS_VINDAS = (
     " /assinar pro — plano Pro (R$19/mês)\n"
     " /assinar equipe — plano Equipe (R$79/mês)\n\n"
     "_Mande qualquer um desses agora e eu processo na hora._\n\n"
-    "🌐 Conheça o site: poda.digital"
+    "🌐 Conheça o site: https://poda.digital"
 )
 
 MENSAGEM_PLANOS = (
