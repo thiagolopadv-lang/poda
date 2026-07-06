@@ -23,7 +23,7 @@ router = APIRouter()
 PENDING_CPF_TTL = 600
 
 SAUDACOES = {"oi", "olá", "ola", "hello", "hi", "hey", "oie", "bom dia", "boa tarde", "boa noite"}
-COMANDOS = {"/status", "/ajuda", "/help", "/planos", "/plano", "/pro", "/assinar"}
+COMANDOS = {"/status", "/ajuda", "/help", "/planos", "/plano", "/starter", "/pro", "/equipe", "/assinar"}
 
 MENSAGEM_BOAS_VINDAS = (
     "🌱 *Olá! Eu sou o Poda.*\n\n"
@@ -153,6 +153,22 @@ async def _rotear_mensagem(numero: str, message: dict) -> None:
         pending = await _get_pendente(numero)
         if pending:
             await _processar_cpf_pendente(numero, body_text, pending)
+            return
+
+        # Comando desconhecido começando com "/" → orientar em vez de analisar como texto
+        if body_lower.startswith("/"):
+            await metrics.registrar_mensagem_recebida(numero, "comando")
+            await enviar_texto(
+                numero,
+                "🤔 *Não reconheci esse comando.*\n\n"
+                "Comandos disponíveis:\n"
+                " /status — seu uso de hoje\n"
+                " /planos — conhecer os planos\n"
+                " /assinar starter — plano Starter (R$9/mês)\n"
+                " /assinar pro — plano Pro (R$19/mês)\n"
+                " /assinar equipe — plano Equipe (R$79/mês)\n"
+                " /ajuda — tudo que eu faço",
+            )
             return
 
         tipo = detectar_tipo(message)
@@ -372,8 +388,12 @@ async def _processar_comando(numero: str, comando: str, texto_completo: str = ""
     elif comando in {"/ajuda", "/help"}:
         await enviar_texto(numero, MENSAGEM_BOAS_VINDAS)
 
-    elif comando in {"/planos", "/plano", "/pro"}:
+    elif comando in {"/planos", "/plano"}:
         await enviar_texto(numero, MENSAGEM_PLANOS)
+
+    elif comando in {"/starter", "/pro", "/equipe"}:
+        # Atalho direto: /starter equivale a /assinar starter
+        await _processar_assinatura(numero, comando[1:])
 
     elif comando == "/assinar":
         tokens = texto_completo.split()
