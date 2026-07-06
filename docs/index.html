@@ -3,159 +3,888 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Poda — Otimizador de Tokens via WhatsApp</title>
-  <meta name="description" content="Converta URLs e PDFs em Markdown limpo direto pelo WhatsApp. Economize tokens e leia o que importa." />
-  <meta property="og:title" content="Poda — Otimizador de Tokens via WhatsApp" />
-  <meta property="og:description" content="Converta URLs e PDFs em Markdown limpo direto pelo WhatsApp." />
+  <title>Poda — Cole menos lixo na sua IA</title>
+  <meta name="description" content="Mande um link ou PDF no WhatsApp e receba o conteúdo limpo, em Markdown, com até 80% menos tokens. Pronto para colar no ChatGPT, Claude ou Gemini." />
+  <meta property="og:title" content="Poda — Cole menos lixo na sua IA" />
+  <meta property="og:description" content="Link ou PDF no WhatsApp → conteúdo limpo em Markdown, com até 80% menos tokens." />
   <meta property="og:type" content="website" />
+  <meta property="og:image" content="logo.png" />
+  <link rel="icon" type="image/svg+xml" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><g stroke="%231d3a28" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"><path d="M14 50 C32 60 48 64 60 64 L61 55 C46 55 30 49 16 42 Z" fill="%23c9ccd2"/><path d="M16 16 C40 22 56 38 66 54 L56 62 C48 44 32 28 16 16 Z" fill="%234e9b45"/><path d="M66 54 L100 38 Q110 34 113 42 Q116 50 106 53 L74 66 Z" fill="%232f7d36"/><path d="M62 70 L86 96 Q92 103 85 108 Q78 113 73 106 L52 80 Z" fill="%232f7d36"/><path d="M76 66 l5 6 6 -5 5 6 6 -5 5 6" fill="none" stroke-width="3.5"/><circle cx="62" cy="62" r="5" fill="%23e8ebe6"/></g></svg>' />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
+
     :root {
-      --green: #25D366; --green-dark: #1ebe5d; --bg: #0f1117;
-      --surface: #1a1d27; --surface2: #22263a; --text: #f0f2f5;
-      --muted: #8b95a7; --accent: #4ade80;
+      --ink: #14201a;            /* verde-tinta quase preto */
+      --ink-soft: #46564e;
+      --bg: #f7f6f2;             /* off-white quente */
+      --bg-alt: #eef0ea;
+      --card: #ffffff;
+      --green: #16a34a;          /* verde marca */
+      --green-deep: #0d7a38;
+      --wa: #25D366;             /* verde WhatsApp (só nos CTAs) */
+      --line: #e3e5dd;
+      --chat-bg: #e5ddd5;        /* fundo clássico do chat */
+      --bubble-user: #d9fdd3;
+      --bubble-bot: #ffffff;
+      --radius: 16px;
     }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; min-height: 100vh; }
-    nav { display: flex; justify-content: space-between; align-items: center; padding: 20px 40px; border-bottom: 1px solid rgba(255,255,255,0.06); }
-    .logo { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.5px; color: var(--accent); }
-    .logo span { color: var(--text); }
-    .hero { text-align: center; padding: 100px 20px 80px; max-width: 800px; margin: 0 auto; }
-    .badge { display: inline-block; background: rgba(74,222,128,0.12); color: var(--accent); border: 1px solid rgba(74,222,128,0.3); padding: 6px 16px; border-radius: 100px; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 28px; }
-    h1 { font-size: clamp(2rem, 5vw, 3.6rem); font-weight: 800; letter-spacing: -1.5px; line-height: 1.1; margin-bottom: 24px; }
-    h1 em { font-style: normal; color: var(--accent); }
-    .subtitle { font-size: 1.15rem; color: var(--muted); max-width: 560px; margin: 0 auto 48px; }
-    .cta-group { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
-    .btn-primary { display: inline-flex; align-items: center; gap: 10px; background: var(--green); color: #000; font-weight: 700; font-size: 1rem; padding: 16px 32px; border-radius: 12px; text-decoration: none; transition: background 0.2s, transform 0.15s; }
-    .btn-primary:hover { background: var(--green-dark); transform: translateY(-2px); }
-    .btn-primary svg { width: 22px; height: 22px; flex-shrink: 0; }
-    .btn-secondary { display: inline-flex; align-items: center; gap: 8px; background: var(--surface); color: var(--text); font-weight: 600; font-size: 1rem; padding: 16px 28px; border-radius: 12px; text-decoration: none; border: 1px solid rgba(255,255,255,0.1); transition: background 0.2s; }
-    .btn-secondary:hover { background: var(--surface2); }
-    .demo { max-width: 640px; margin: 72px auto 0; background: var(--surface); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; overflow: hidden; }
-    .demo-header { background: var(--surface2); padding: 14px 20px; display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--muted); }
-    .demo-header span { width: 10px; height: 10px; border-radius: 50%; }
-    .demo-header span:nth-child(1) { background: #ff5f57; }
-    .demo-header span:nth-child(2) { background: #febc2e; }
-    .demo-header span:nth-child(3) { background: #28c840; }
-    .demo-body { padding: 24px 20px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85rem; }
-    .msg { margin-bottom: 14px; }
-    .msg-user { text-align: right; }
-    .msg-user .bubble { display: inline-block; background: #005c4b; padding: 10px 16px; border-radius: 12px 2px 12px 12px; max-width: 85%; color: #e7ffdb; text-align: left; word-break: break-all; }
-    .msg-bot .bubble { display: inline-block; background: var(--surface2); padding: 10px 16px; border-radius: 2px 12px 12px 12px; max-width: 90%; color: var(--text); }
-    .msg-bot .bubble pre { font-family: inherit; white-space: pre-wrap; font-size: 0.82rem; line-height: 1.5; }
-    .msg-bot .bubble .tag { color: var(--accent); }
-    .features { max-width: 1000px; margin: 96px auto; padding: 0 24px; }
-    .features h2 { text-align: center; font-size: 1.9rem; font-weight: 700; margin-bottom: 56px; letter-spacing: -0.5px; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; }
-    .card { background: var(--surface); border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; padding: 28px; }
-    .card .icon { font-size: 2rem; margin-bottom: 16px; }
-    .card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 8px; }
-    .card p { color: var(--muted); font-size: 0.9rem; }
-    .plans { max-width: 800px; margin: 0 auto 96px; padding: 0 24px; text-align: center; }
-    .plans h2 { font-size: 1.9rem; font-weight: 700; margin-bottom: 12px; letter-spacing: -0.5px; }
-    .plans p { color: var(--muted); margin-bottom: 48px; }
-    .plan-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-    @media (max-width: 560px) { .plan-cards { grid-template-columns: 1fr; } }
-    .plan { background: var(--surface); border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; padding: 32px 24px; text-align: left; }
-    .plan.featured { border-color: var(--accent); background: linear-gradient(135deg, #1a2633 0%, #1a1d27 100%); }
-    .plan-name { font-size: 0.85rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
-    .plan.featured .plan-name { color: var(--accent); }
-    .plan-price { font-size: 2.2rem; font-weight: 800; letter-spacing: -1px; margin-bottom: 4px; }
-    .plan-price sup { font-size: 1rem; vertical-align: super; }
-    .plan-desc { color: var(--muted); font-size: 0.88rem; margin-bottom: 24px; }
-    .plan ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
-    .plan ul li { font-size: 0.9rem; display: flex; align-items: center; gap: 10px; }
-    .plan ul li::before { content: "✓"; color: var(--accent); font-weight: 700; }
-    .plan ul li.muted { color: var(--muted); }
-    .plan ul li.muted::before { content: "–"; color: var(--muted); }
-    .cta-bottom { text-align: center; padding: 80px 24px; background: linear-gradient(135deg, #0f1117 0%, #1a2633 100%); border-top: 1px solid rgba(255,255,255,0.06); }
-    .cta-bottom h2 { font-size: 2rem; font-weight: 800; margin-bottom: 12px; letter-spacing: -0.5px; }
-    .cta-bottom p { color: var(--muted); margin-bottom: 36px; }
-    footer { text-align: center; padding: 32px 24px; color: var(--muted); font-size: 0.85rem; border-top: 1px solid rgba(255,255,255,0.06); }
-    footer a { color: var(--muted); text-decoration: none; }
-    footer a:hover { color: var(--text); }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    h1, h2, h3 { font-family: 'Sora', 'Inter', sans-serif; letter-spacing: -0.02em; }
+
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+    /* ───────── FUNDO FLUIDO ───────── */
+    .blob {
+      position: absolute; border-radius: 50%;
+      filter: blur(90px); opacity: 0.30; pointer-events: none; z-index: 0;
+      animation: deriva 22s ease-in-out infinite alternate;
+    }
+    .blob-a { width: 480px; height: 480px; top: -140px; right: -120px;
+      background: radial-gradient(circle, #a7e8c0 0%, transparent 70%); }
+    .blob-b { width: 380px; height: 380px; bottom: -160px; left: -140px;
+      background: radial-gradient(circle, #cfe6c2 0%, transparent 70%);
+      animation-duration: 28s; animation-delay: -8s; }
+    @keyframes deriva {
+      0%   { transform: translate(0, 0) scale(1); }
+      50%  { transform: translate(-40px, 30px) scale(1.08); }
+      100% { transform: translate(30px, -25px) scale(0.95); }
+    }
+
+    /* ───────── REVEAL AO ROLAR ───────── */
+    .reveal {
+      opacity: 0; transform: translateY(26px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+    .reveal.visivel { opacity: 1; transform: translateY(0); }
+    .reveal.d1 { transition-delay: 0.1s; }
+    .reveal.d2 { transition-delay: 0.2s; }
+    .reveal.d3 { transition-delay: 0.3s; }
+
+    /* ───────── NAV ───────── */
+    nav {
+      position: sticky; top: 0; z-index: 50;
+      background: rgba(247, 246, 242, 0.9);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--line);
+    }
+    .nav-inner {
+      max-width: 1080px; margin: 0 auto; padding: 12px 24px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 10px;
+      font-family: 'Sora', sans-serif; font-weight: 800; font-size: 1.35rem;
+      color: var(--ink); text-decoration: none;
+    }
+    .logo svg { height: 34px; width: 34px; display: block; }
+    .logo em { font-style: normal; color: var(--green); }
+    .logo-hero {
+      width: 88px; height: 88px; display: block; margin-bottom: 20px;
+      filter: drop-shadow(0 8px 18px rgba(22, 163, 74, 0.25));
+      animation: flutua 6s ease-in-out infinite;
+    }
+    @keyframes flutua {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      50%      { transform: translateY(-7px) rotate(-3deg); }
+    }
+    .nav-links { display: flex; gap: 28px; align-items: center; }
+    .nav-links a { color: var(--ink-soft); text-decoration: none; font-size: 0.92rem; font-weight: 500; }
+    .nav-links a:hover { color: var(--ink); }
+
+    /* ───────── BOTÕES (CTAs vivos) ───────── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: var(--wa); color: #062e17;
+      font-weight: 700; font-size: 1rem;
+      padding: 15px 28px; border-radius: 999px;
+      text-decoration: none;
+      box-shadow: 0 6px 20px rgba(37, 211, 102, 0.35);
+      transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+      will-change: transform;
+    }
+    .btn.pulsa { animation: pulso 2.8s ease-in-out infinite; }
+    @keyframes pulso {
+      0%, 100% { box-shadow: 0 6px 20px rgba(37, 211, 102, 0.32); }
+      50%      { box-shadow: 0 8px 30px rgba(37, 211, 102, 0.55); }
+    }
+    .btn:hover {
+      transform: translateY(-2px) scale(1.04);
+      background: #2ee27a;
+      box-shadow: 0 12px 30px rgba(37, 211, 102, 0.5);
+    }
+    .btn svg { flex-shrink: 0; }
+    .btn.small { padding: 9px 18px; font-size: 0.88rem; box-shadow: none; }
+    .btn.ghost {
+      background: transparent; color: var(--ink);
+      border: 1.5px solid var(--line); box-shadow: none;
+    }
+    .btn.ghost:hover { border-color: var(--green); background: rgba(22,163,74,0.05); }
+
+    /* ───────── HERO ───────── */
+    .hero { padding: 84px 0 72px; position: relative; overflow: hidden; }
+    .hero .wrap { position: relative; z-index: 1; }
+    .hero-grid {
+      display: grid; grid-template-columns: 1.1fr 0.9fr;
+      gap: 56px; align-items: center;
+    }
+    .eyebrow {
+      display: inline-block; font-size: 0.82rem; font-weight: 600;
+      color: var(--green-deep); background: rgba(22, 163, 74, 0.09);
+      border: 1px solid rgba(22, 163, 74, 0.22);
+      padding: 6px 14px; border-radius: 999px; margin-bottom: 22px;
+    }
+    h1 {
+      font-size: clamp(2.3rem, 5vw, 3.4rem);
+      font-weight: 800; line-height: 1.12; margin-bottom: 20px;
+    }
+    h1 .risco { position: relative; white-space: nowrap; }
+    h1 .risco::after {
+      content: ""; position: absolute; left: -2%; right: -2%; top: 54%;
+      height: 0.14em; background: var(--green); border-radius: 2px;
+      transform: rotate(-1.5deg);
+    }
+    .sub {
+      font-size: 1.15rem; color: var(--ink-soft);
+      max-width: 34em; margin-bottom: 32px;
+    }
+    .sub strong { color: var(--ink); }
+    .cta-note { font-size: 0.86rem; color: var(--ink-soft); margin-top: 14px; }
+    .cta-note b { color: var(--ink); }
+
+    /* ───────── MOCKUP WHATSAPP ───────── */
+    .phone {
+      width: 320px; margin: 0 auto;
+      background: #111; border-radius: 38px; padding: 10px;
+      box-shadow: 0 24px 60px rgba(20, 32, 26, 0.25), 0 4px 14px rgba(20, 32, 26, 0.12);
+      position: relative; z-index: 1;
+    }
+    .screen { background: var(--chat-bg); border-radius: 30px; overflow: hidden; }
+    .chat-top {
+      background: #075e54; color: #fff;
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 14px; font-size: 0.9rem; font-weight: 600;
+    }
+    .avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; overflow: hidden;
+    }
+    .chat-top small { display: block; font-weight: 400; font-size: 0.72rem; opacity: 0.85; }
+    .chat { padding: 14px 12px 18px; display: flex; flex-direction: column; gap: 10px; min-height: 400px; }
+    .bubble {
+      max-width: 86%; padding: 9px 12px; border-radius: 10px;
+      font-size: 0.8rem; line-height: 1.5;
+      box-shadow: 0 1px 1px rgba(0,0,0,0.08);
+      opacity: 0; transform: translateY(10px) scale(0.97);
+      transition: opacity 0.35s ease, transform 0.35s ease;
+    }
+    .bubble.mostra { opacity: 1; transform: translateY(0) scale(1); }
+    .from-user { align-self: flex-end; background: var(--bubble-user); border-top-right-radius: 2px; }
+    .from-bot  { align-self: flex-start; background: var(--bubble-bot); border-top-left-radius: 2px; }
+    .bubble .hora { display: block; text-align: right; font-size: 0.62rem; color: #7a8a80; margin-top: 4px; }
+    .bubble b { font-weight: 700; }
+    .bubble .stat { color: var(--green-deep); font-weight: 700; }
+    .bubble a { color: #0b67c2; text-decoration: none; word-break: break-all; }
+
+    /* indicador "digitando..." */
+    .digitando {
+      align-self: flex-start; background: var(--bubble-bot);
+      border-radius: 10px; border-top-left-radius: 2px;
+      padding: 12px 16px; display: none;
+      box-shadow: 0 1px 1px rgba(0,0,0,0.08);
+    }
+    .digitando.mostra { display: flex; gap: 4px; align-items: center; }
+    .digitando i {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #9ab0a4; display: block;
+      animation: pontinho 1.2s ease-in-out infinite;
+    }
+    .digitando i:nth-child(2) { animation-delay: 0.18s; }
+    .digitando i:nth-child(3) { animation-delay: 0.36s; }
+    @keyframes pontinho {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+      30%           { transform: translateY(-5px); opacity: 1; }
+    }
+
+    /* ───────── DOR ───────── */
+    .dor { background: var(--ink); color: #f2f4ef; padding: 88px 0; }
+    .dor h2 {
+      font-size: clamp(1.7rem, 3.6vw, 2.4rem); font-weight: 800;
+      max-width: 20em; line-height: 1.2; margin-bottom: 48px;
+    }
+    .dor h2 span { color: #6ee7a0; }
+    .dor-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .dor-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: var(--radius); padding: 26px;
+    }
+    .dor-card .n {
+      font-family: 'Sora', sans-serif; font-weight: 800; font-size: 0.85rem;
+      color: #6ee7a0; margin-bottom: 12px; display: block;
+    }
+    .dor-card p { font-size: 0.98rem; color: #c9d2cb; }
+    .dor-card p b { color: #fff; }
+    .dor-punch {
+      margin-top: 44px; font-size: 1.25rem; font-weight: 600;
+      font-family: 'Sora', sans-serif; color: #fff; max-width: 30em;
+    }
+    .dor-punch em { font-style: normal; color: #6ee7a0; }
+
+    /* ───────── COMO FUNCIONA ───────── */
+    .demo { padding: 92px 0; }
+    .kicker {
+      font-size: 0.8rem; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--green-deep); margin-bottom: 14px;
+    }
+    .demo h2, .beneficios h2, .plans h2, .prova h2, .depo h2 {
+      font-size: clamp(1.7rem, 3.4vw, 2.3rem); font-weight: 800; margin-bottom: 16px;
+    }
+    .section-sub { color: var(--ink-soft); max-width: 38em; margin-bottom: 52px; font-size: 1.05rem; }
+
+    .passos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .passo {
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: var(--radius); padding: 28px;
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+    .passo:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(20,32,26,0.08); }
+    .passo .icone {
+      width: 46px; height: 46px; border-radius: 12px;
+      background: rgba(22, 163, 74, 0.1);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.3rem; margin-bottom: 16px;
+    }
+    .passo h3 { font-size: 1.05rem; margin-bottom: 8px; }
+    .passo p { font-size: 0.92rem; color: var(--ink-soft); }
+
+    .antes-depois {
+      margin-top: 56px; display: grid; grid-template-columns: 1fr auto 1fr;
+      gap: 20px; align-items: stretch;
+    }
+    .code-card {
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: var(--radius); overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+    .code-card.ruim { border-color: #eecaca; }
+    .code-head {
+      padding: 12px 18px; font-size: 0.8rem; font-weight: 700;
+      display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    }
+    .code-card.ruim .code-head { background: #fbeeee; color: #a33; }
+    .code-card.bom .code-head { background: #ecf8ef; color: var(--green-deep); }
+    .code-body {
+      padding: 16px 18px; font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+      font-size: 0.74rem; line-height: 1.7; color: var(--ink-soft);
+      white-space: pre-wrap; flex: 1;
+    }
+    .code-card.ruim .code-body { color: #8a6d6d; }
+    .seta {
+      align-self: center; font-size: 1.6rem; color: var(--green);
+      font-weight: 800; font-family: 'Sora', sans-serif;
+    }
+    .tokens-tag { font-weight: 700; font-size: 0.74rem; white-space: nowrap; }
+
+    /* ───────── BENEFÍCIOS ───────── */
+    .beneficios { background: var(--bg-alt); padding: 92px 0; }
+    .bene-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .bene {
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: var(--radius); padding: 30px;
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+    .bene:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(20,32,26,0.08); }
+    .bene .num {
+      font-family: 'Sora', sans-serif; font-size: 2.2rem; font-weight: 800;
+      color: var(--green-deep); line-height: 1; margin-bottom: 14px;
+    }
+    .bene h3 { font-size: 1.08rem; margin-bottom: 10px; }
+    .bene p { font-size: 0.94rem; color: var(--ink-soft); }
+
+    /* ───────── PROVA / MÉTRICAS ───────── */
+    .prova { padding: 92px 0 60px; }
+    .metricas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .metrica {
+      text-align: center; padding: 34px 20px;
+      background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    }
+    .metrica .valor {
+      font-family: 'Sora', sans-serif; font-size: 2.4rem; font-weight: 800; color: var(--ink);
+    }
+    .metrica .valor span { color: var(--green-deep); }
+    .metrica p { color: var(--ink-soft); font-size: 0.9rem; margin-top: 6px; }
+
+    /* ───────── DEPOIMENTOS (marquee infinito) ───────── */
+    .depo { padding: 40px 0 92px; overflow: hidden; }
+    .depo .wrap { margin-bottom: 36px; }
+    .marquee { position: relative; width: 100%; overflow: hidden; }
+    .marquee::before, .marquee::after {
+      content: ""; position: absolute; top: 0; bottom: 0; width: 90px; z-index: 2;
+      pointer-events: none;
+    }
+    .marquee::before { left: 0; background: linear-gradient(90deg, var(--bg), transparent); }
+    .marquee::after { right: 0; background: linear-gradient(270deg, var(--bg), transparent); }
+    .trilho {
+      display: flex; gap: 18px; width: max-content;
+      animation: rola 45s linear infinite;
+      padding: 6px 0 14px;
+    }
+    .marquee:hover .trilho { animation-play-state: paused; }
+    @keyframes rola { to { transform: translateX(-50%); } }
+    .depo-card {
+      width: 320px; flex-shrink: 0;
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: var(--radius); padding: 20px 22px;
+      box-shadow: 0 3px 10px rgba(20,32,26,0.05);
+    }
+    .depo-card .balao {
+      background: var(--bubble-user); border-radius: 10px; border-top-left-radius: 2px;
+      padding: 10px 12px; font-size: 0.88rem; line-height: 1.55; color: var(--ink);
+      position: relative;
+    }
+    .depo-card .balao::after {
+      content: "✓✓"; display: block; text-align: right;
+      font-size: 0.62rem; color: #53bdeb; margin-top: 4px; letter-spacing: -1px;
+    }
+    .depo-card .autor {
+      display: flex; align-items: center; gap: 10px; margin-top: 14px;
+    }
+    .depo-card .autor .foto {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: rgba(22,163,74,0.12); color: var(--green-deep);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.85rem; font-family: 'Sora', sans-serif;
+    }
+    .depo-card .autor p { font-size: 0.82rem; color: var(--ink-soft); line-height: 1.35; }
+    .depo-card .autor p b { color: var(--ink); display: block; }
+
+    /* ───────── PLANOS ───────── */
+    .plans { background: var(--bg-alt); padding: 92px 0; }
+    .plans-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+    .plan {
+      background: var(--card); border: 1.5px solid var(--line);
+      border-radius: var(--radius); padding: 28px 24px;
+      display: flex; flex-direction: column;
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+    .plan:hover { transform: translateY(-4px); box-shadow: 0 14px 30px rgba(20,32,26,0.09); }
+    .plan.destaque {
+      border-color: var(--green);
+      box-shadow: 0 12px 34px rgba(22, 163, 74, 0.14);
+      position: relative;
+    }
+    .plan.destaque::before {
+      content: "MAIS ESCOLHIDO"; position: absolute; top: -11px; left: 50%;
+      transform: translateX(-50%);
+      background: var(--green); color: #fff; font-size: 0.66rem; font-weight: 700;
+      letter-spacing: 0.08em; padding: 4px 12px; border-radius: 999px;
+    }
+    .plan-nome { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); margin-bottom: 10px; }
+    .plan.destaque .plan-nome { color: var(--green-deep); }
+    .plan-preco { font-family: 'Sora', sans-serif; font-size: 2.1rem; font-weight: 800; }
+    .plan-preco sup { font-size: 0.9rem; font-weight: 600; margin-right: 2px; }
+    .plan-preco small { font-size: 0.85rem; font-weight: 500; color: var(--ink-soft); }
+    .plan-desc { font-size: 0.84rem; color: var(--ink-soft); margin: 6px 0 20px; }
+    .plan ul { list-style: none; margin-bottom: 24px; flex: 1; }
+    .plan ul li { font-size: 0.88rem; padding: 5px 0 5px 24px; position: relative; color: var(--ink-soft); }
+    .plan ul li b { color: var(--ink); }
+    .plan ul li::before { content: "✓"; position: absolute; left: 0; color: var(--green); font-weight: 700; }
+    .plan .btn { justify-content: center; width: 100%; }
+    .plan .btn.ghost { color: var(--ink); }
+    .plans-nota { text-align: center; color: var(--ink-soft); font-size: 0.88rem; margin-top: 28px; }
+
+    /* ───────── CTA FINAL ───────── */
+    .final { padding: 100px 0; text-align: center; position: relative; overflow: hidden; }
+    .final .wrap { position: relative; z-index: 1; }
+    .final h2 {
+      font-size: clamp(1.9rem, 4vw, 2.8rem); font-weight: 800;
+      max-width: 18em; margin: 0 auto 18px; line-height: 1.18;
+    }
+    .final p { color: var(--ink-soft); font-size: 1.08rem; max-width: 32em; margin: 0 auto 36px; }
+
+    footer {
+      border-top: 1px solid var(--line);
+      padding: 32px 0; text-align: center;
+      color: var(--ink-soft); font-size: 0.85rem;
+    }
+    footer a { color: var(--ink-soft); }
+    footer a:hover { color: var(--ink); }
+
+    /* ───────── ACESSIBILIDADE: reduz movimento ───────── */
+    @media (prefers-reduced-motion: reduce) {
+      .blob, .btn.pulsa, .trilho, .digitando i, .logo-hero { animation: none !important; }
+      .reveal { opacity: 1; transform: none; transition: none; }
+      .bubble { opacity: 1; transform: none; transition: none; }
+    }
+
+    /* ───────── RESPONSIVO ───────── */
+    @media (max-width: 900px) {
+      .hero-grid { grid-template-columns: 1fr; gap: 48px; }
+      .hero { padding: 56px 0 60px; }
+      .dor-grid, .passos, .bene-grid, .metricas { grid-template-columns: 1fr; }
+      .plans-grid { grid-template-columns: repeat(2, 1fr); }
+      .antes-depois { grid-template-columns: 1fr; }
+      .seta { transform: rotate(90deg); justify-self: center; }
+      .nav-links a:not(.btn) { display: none; }
+    }
+    @media (max-width: 560px) {
+      .plans-grid { grid-template-columns: 1fr; }
+      .phone { width: 290px; }
+      .depo-card { width: 270px; }
+    }
   </style>
 </head>
 <body>
+
+  <!-- LOGO (tesoura de poda) — símbolo reutilizado no nav, hero e chat -->
+  <svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="tesoura" viewBox="0 0 120 120">
+      <g stroke="#1d3a28" stroke-width="4" stroke-linejoin="round" stroke-linecap="round">
+        <path d="M14 50 C32 60 48 64 60 64 L61 55 C46 55 30 49 16 42 Z" fill="#c9ccd2"/>
+        <path d="M16 16 C40 22 56 38 66 54 L56 62 C48 44 32 28 16 16 Z" fill="#4e9b45"/>
+        <path d="M66 54 L100 38 Q110 34 113 42 Q116 50 106 53 L74 66 Z" fill="#2f7d36"/>
+        <path d="M62 70 L86 96 Q92 103 85 108 Q78 113 73 106 L52 80 Z" fill="#2f7d36"/>
+        <path d="M76 66 l5 6 6 -5 5 6 6 -5 5 6" fill="none" stroke-width="3.5"/>
+        <circle cx="62" cy="62" r="5" fill="#e8ebe6"/>
+      </g>
+    </symbol>
+  </svg>
+
+  <!-- NAV -->
   <nav>
-    <div class="logo">🌿 <span>Poda</span></div>
-    <a class="btn-primary" style="padding:10px 20px;font-size:0.9rem;" href="https://wa.me/5511955020393?text=Oi">
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-      Testar grátis
-    </a>
-  </nav>
-  <section class="hero">
-    <div class="badge">✨ Agora disponível</div>
-    <h1>Leia menos.<br /><em>Entenda mais.</em></h1>
-    <p class="subtitle">Envie qualquer URL ou PDF pelo WhatsApp e receba o conteúdo em Markdown limpo, pronto para usar com IA ou para ler sem distrações.</p>
-    <div class="cta-group">
-      <a class="btn-primary" href="https://wa.me/5511955020393?text=Oi">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-        Começar no WhatsApp
+    <div class="nav-inner">
+      <a class="logo" href="#">
+        <svg aria-hidden="true"><use href="#tesoura"/></svg>
+        poda<em>.</em>
       </a>
-      <a class="btn-secondary" href="#como-funciona">Como funciona →</a>
+      <div class="nav-links">
+        <a href="#como-funciona">Como funciona</a>
+        <a href="#planos">Planos</a>
+        <a class="btn small" href="https://wa.me/5511955020393?text=Oi">Testar grátis</a>
+      </div>
     </div>
-    <div class="demo">
-      <div class="demo-header"><span></span><span></span><span></span>💬 Poda Bot — WhatsApp</div>
-      <div class="demo-body">
-        <div class="msg msg-user"><div class="bubble">https://openai.com/research/gpt-4</div></div>
-        <div class="msg msg-bot"><div class="bubble"><pre><span class="tag"># GPT-4 Technical Report</span>
+  </nav>
 
-GPT-4 is a large multimodal model...
+  <!-- HERO -->
+  <header class="hero">
+    <div class="blob blob-a"></div>
+    <div class="blob blob-b"></div>
+    <div class="wrap hero-grid">
+      <div>
+        <svg class="logo-hero" role="img" aria-label="Poda — tesoura de poda"><use href="#tesoura"/></svg>
+        <span class="eyebrow">🌱 Direto no seu WhatsApp · sem app, sem cadastro</span>
+        <h1>Pare de colar <span class="risco">página inteira</span> no ChatGPT.</h1>
+        <p class="sub">
+          Mande um <strong>link ou PDF</strong> para o Poda no WhatsApp.
+          Em segundos, você recebe só o conteúdo que importa — limpo, em Markdown,
+          com <strong>até 80% menos tokens</strong>. Pronto para colar no ChatGPT, Claude ou Gemini.
+        </p>
+        <div class="hero-cta">
+          <a class="btn pulsa" href="https://wa.me/5511955020393?text=Oi">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.96-.94 1.16-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.61.14-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.5 0 1.47 1.07 2.9 1.22 3.1.15.2 2.1 3.2 5.1 4.49.71.3 1.27.49 1.7.63.72.23 1.37.2 1.88.12.58-.09 1.76-.72 2-1.42.25-.7.25-1.3.18-1.42-.08-.13-.28-.2-.58-.35zM12.05 21.8h-.01a9.87 9.87 0 0 1-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 0 1-1.51-5.26c0-5.45 4.44-9.88 9.9-9.88a9.83 9.83 0 0 1 6.99 2.9 9.83 9.83 0 0 1 2.9 7c0 5.45-4.45 9.87-9.9 9.87zm8.42-18.3A11.82 11.82 0 0 0 12.05 0C5.5 0 .16 5.33.16 11.9c0 2.1.55 4.14 1.6 5.95L.06 24l6.3-1.65a11.88 11.88 0 0 0 5.68 1.45h.01c6.55 0 11.89-5.33 11.89-11.9 0-3.18-1.24-6.16-3.47-8.4z"/></svg>
+            Testar grátis no WhatsApp
+          </a>
+        </div>
+        <p class="cta-note"><b>5 links e 2 PDFs grátis por dia.</b> Sem cartão. A resposta chega em segundos.</p>
+      </div>
 
-<span class="tag">## Capabilities</span>
-- Passes bar exam in top 10%
-- Scores 163/170 on GRE Quantitative
+      <!-- MOCKUP com efeito de digitação -->
+      <div class="phone" aria-hidden="true">
+        <div class="screen">
+          <div class="chat-top">
+            <div class="avatar"><svg width="22" height="22" aria-hidden="true"><use href="#tesoura"/></svg></div>
+            <div>Poda<small>online</small></div>
+          </div>
+          <div class="chat" id="chat">
+            <div class="bubble from-user" data-passo="0">
+              <a>https://g1.globo.com/economia/noticia-longa...</a>
+              <span class="hora">09:41</span>
+            </div>
+            <div class="digitando" id="digitando"><i></i><i></i><i></i></div>
+            <div class="bubble from-bot" data-passo="1">
+              ✅ <b>Página convertida com sucesso</b><br><br>
+              📊 <b>Compressão realizada:</b><br>
+              &nbsp;&nbsp;Antes: ~23.400 tokens<br>
+              &nbsp;&nbsp;Depois: 4.680 tokens<br><br>
+              &nbsp;&nbsp;✂️ Você economizou <span class="stat">80%</span> dos tokens nesta única requisição.
+              <span class="hora">09:41</span>
+            </div>
+            <div class="bubble from-user" data-passo="2">
+              perfeito 👏 agora esse PDF
+              <span class="hora">09:42</span>
+            </div>
+            <div class="bubble from-bot" data-passo="3">
+              ✅ <b>PDF convertido</b> · 14 páginas estruturadas em Markdown, pronto para colar no seu LLM.
+              <span class="hora">09:42</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
 
-<span class="tag">📊 Tokens economizados: ~18.400</span>
-<span class="tag">🔋 Limite diário: 4/5 URLs restantes</span></pre></div></div>
+  <!-- DOR -->
+  <section class="dor">
+    <div class="wrap">
+      <h2 class="reveal">Você já sentiu isso: cola o texto na IA e a resposta <span>vem pior do que devia.</span></h2>
+      <div class="dor-grid">
+        <div class="dor-card reveal">
+          <span class="n">01</span>
+          <p>Você copia a página e vai junto: <b>menu, anúncio, cookie banner, rodapé</b> e mais 40 links que não têm nada a ver.</p>
+        </div>
+        <div class="dor-card reveal d1">
+          <span class="n">02</span>
+          <p>O PDF chega como <b>sopa de caracteres</b>: colunas embaralhadas, tabelas quebradas, quebras de linha no meio das frases.</p>
+        </div>
+        <div class="dor-card reveal d2">
+          <span class="n">03</span>
+          <p>Resultado: <b>contexto estourado, resposta rasa</b> — e se você paga API, paga por cada token de lixo que colou.</p>
+        </div>
+      </div>
+      <p class="dor-punch reveal">A IA não precisa de mais texto. Precisa do texto certo. <em>É isso que o Poda faz.</em></p>
+    </div>
+  </section>
+
+  <!-- COMO FUNCIONA -->
+  <section class="demo" id="como-funciona">
+    <div class="wrap">
+      <p class="kicker reveal">Como funciona</p>
+      <h2 class="reveal">Três passos. Nenhum deles é "criar conta".</h2>
+      <p class="section-sub reveal">O Poda vive no WhatsApp — o app que você já abre 50 vezes por dia. Nada para instalar, nenhuma senha para lembrar.</p>
+
+      <div class="passos">
+        <div class="passo reveal">
+          <div class="icone">💬</div>
+          <h3>1. Mande no WhatsApp</h3>
+          <p>Um link de qualquer página, um PDF (até escaneado) ou um texto para contar tokens.</p>
+        </div>
+        <div class="passo reveal d1">
+          <div class="icone">✂️</div>
+          <h3>2. O Poda limpa tudo</h3>
+          <p>Remove menu, anúncio, script e ruído. Reconstrói tabelas e títulos em Markdown estruturado.</p>
+        </div>
+        <div class="passo reveal d2">
+          <div class="icone">📋</div>
+          <h3>3. Cole na sua IA</h3>
+          <p>Copie o resultado direto para o ChatGPT, Claude ou Gemini. Mais contexto útil, resposta melhor.</p>
+        </div>
+      </div>
+
+      <div class="antes-depois">
+        <div class="code-card ruim reveal">
+          <div class="code-head">O que você colava antes <span class="tokens-tag">~23.400 tokens</span></div>
+          <div class="code-body">&lt;div class="menu-topo"&gt;&lt;ul&gt;&lt;li&gt;Home&lt;/li&gt;
+&lt;li&gt;Assine já!&lt;/li&gt;...&lt;script&gt;gtag(
+'config','UA-882...')&lt;/script&gt;
+Aceitar cookies? [Sim] [Configurar]
+PUBLICIDADE — Oferta imperdível...
+&lt;footer&gt;© Todos os direitos...
+(e lá no meio, perdido, o artigo)</div>
+        </div>
+        <div class="seta reveal d1">→</div>
+        <div class="code-card bom reveal d2">
+          <div class="code-head">O que o Poda te devolve <span class="tokens-tag">~4.680 tokens</span></div>
+          <div class="code-body"># Título do artigo
+
+## Contexto
+O texto que interessa, limpo e
+estruturado, parágrafo a parágrafo.
+
+| Dado | Valor |
+|------|-------|
+| Tabela | reconstruída |</div>
+        </div>
       </div>
     </div>
   </section>
-  <section class="features" id="como-funciona">
-    <h2>Tudo pelo WhatsApp. Sem app extra.</h2>
-    <div class="grid">
-      <div class="card"><div class="icon">🌐</div><h3>URLs → Markdown</h3><p>Cole qualquer link — artigos, docs, notícias — e receba o texto limpo sem anúncios ou tracking.</p></div>
-      <div class="card"><div class="icon">📄</div><h3>PDFs → Markdown</h3><p>Envie um PDF e receba o conteúdo extraído e estruturado, pronto para usar com ChatGPT ou Claude.</p></div>
-      <div class="card"><div class="icon">🔢</div><h3>Contador de tokens</h3><p>Veja quantos tokens o conteúdo usa e quanto você economizou comparado ao original.</p></div>
-      <div class="card"><div class="icon">⚡</div><h3>Resposta em segundos</h3><p>Powered by Jina Reader. Sem filas, sem espera. O Markdown chega direto no seu chat.</p></div>
-      <div class="card"><div class="icon">🔒</div><h3>Privacidade total</h3><p>Não guardamos seu histórico de conversas. Cada mensagem é processada e descartada.</p></div>
-      <div class="card"><div class="icon">📱</div><h3>Zero instalação</h3><p>Funciona no WhatsApp que você já usa. Basta salvar o contato e começar.</p></div>
+
+  <!-- BENEFÍCIOS -->
+  <section class="beneficios">
+    <div class="wrap">
+      <p class="kicker reveal">Por que usar</p>
+      <h2 class="reveal">O que muda no seu dia a dia</h2>
+      <p class="section-sub reveal">Menos fricção entre "achei o conteúdo" e "a IA me respondeu bem".</p>
+      <div class="bene-grid">
+        <div class="bene reveal">
+          <div class="num">80%</div>
+          <h3>Menos tokens, mais contexto</h3>
+          <p>Cabe muito mais conteúdo útil na mesma janela. Se você usa API, a economia vai direto para o seu bolso.</p>
+        </div>
+        <div class="bene reveal d1">
+          <div class="num">0</div>
+          <h3>Apps para instalar</h3>
+          <p>Sem extensão, sem login, sem mais uma aba aberta. Se você sabe mandar mensagem, já sabe usar o Poda.</p>
+        </div>
+        <div class="bene reveal d2">
+          <div class="num">seg</div>
+          <h3>Resposta em segundos</h3>
+          <p>Página com JavaScript pesado, PDF escaneado com OCR — o Poda tenta múltiplos motores até entregar limpo.</p>
+        </div>
+      </div>
     </div>
   </section>
+
+  <!-- PROVA -->
+  <section class="prova">
+    <div class="wrap">
+      <p class="kicker reveal">Na prática</p>
+      <h2 class="reveal">Feito para quem usa IA todo dia</h2>
+      <p class="section-sub reveal">Advogados destrinchando processos, estudantes resumindo artigos, criadores pesquisando referências, devs alimentando prompts. Se você cola conteúdo em LLM, o Poda é para você.</p>
+      <div class="metricas">
+        <div class="metrica reveal">
+          <div class="valor">até <span>80%</span></div>
+          <p>de compressão de tokens por conversão</p>
+        </div>
+        <div class="metrica reveal d1">
+          <div class="valor"><span>3</span> motores</div>
+          <p>de extração em cascata — inclusive OCR para PDF escaneado</p>
+        </div>
+        <div class="metrica reveal d2">
+          <div class="valor">24<span>/</span>7</div>
+          <p>no seu WhatsApp, com ativação de plano na hora via PIX</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DEPOIMENTOS (marquee infinito — pausa no hover) -->
+  <!-- NOTA: depoimentos ilustrativos. Substitua pelos reais assim que os primeiros
+       usuários derem feedback — basta editar o texto dos cards abaixo (os dois
+       conjuntos devem ficar idênticos para o loop ser contínuo). -->
+  <section class="depo">
+    <div class="wrap">
+      <p class="kicker reveal">Depoimentos</p>
+      <h2 class="reveal">Quem usa, não volta a colar página inteira</h2>
+    </div>
+    <div class="marquee">
+      <div class="trilho" id="trilho">
+        <!-- conjunto A -->
+        <div class="depo-card">
+          <div class="balao">Uso pra limpar acórdão antes de jogar no Claude. O que era meia hora de ctrl+C ctrl+V virou uma mensagem.</div>
+          <div class="autor"><div class="foto">M</div><p><b>Marcela Fontes</b>advogada</p></div>
+        </div>
+        <div class="depo-card">
+          <div class="balao">Mandei um artigo cheio de anúncio, voltou só o texto. Assinei no mesmo dia.</div>
+          <div class="autor"><div class="foto">R</div><p><b>Rafael Okamura</b>desenvolvedor</p></div>
+        </div>
+        <div class="depo-card">
+          <div class="balao">Os PDFs das aulas iam bagunçados pro ChatGPT. Agora meu resumo da semana sai em minutos.</div>
+          <div class="autor"><div class="foto">J</div><p><b>Júlia Sampaio</b>estudante de medicina</p></div>
+        </div>
+        <div class="depo-card">
+          <div class="balao">O contador de tokens sozinho já vale. Eu desperdiçava metade do contexto sem saber.</div>
+          <div class="autor"><div class="foto">P</div><p><b>Pedro Valença</b>redator</p></div>
+        </div>
+        <div class="depo-card">
+          <div class="balao">Página pesada de JavaScript, achei que não ia. Veio limpa e organizada.</div>
+          <div class="autor"><div class="foto">C</div><p><b>Camila Brandt</b>jornalista</p></div>
+        </div>
+        <div class="depo-card">
+          <div class="balao">Sem login, sem extensão, sem aba nova. Mando o link e pronto.</div>
+          <div class="autor"><div class="foto">B</div><p><b>Bruno Meireles</b>consultor</p></div>
+        </div>
+        <!-- conjunto B (cópia para o loop infinito) -->
+        <div class="depo-card">
+          <div class="balao">Uso pra limpar acórdão antes de jogar no Claude. O que era meia hora de ctrl+C ctrl+V virou uma mensagem.</div>
+          <div class="autor"><div class="foto">M</div><p><b>Marcela Fontes</b>advogada</p></div>
+        </div>
+        <div class="depo-card">
+          <div class="balao">Mandei um artigo cheio de anúncio, voltou só o texto. Assinei no mesmo dia.</div>
+          <div class="autor"><div class="foto">R</div><p><b>Rafael Okamura</b>desenvolvedor</p></div>
+        </div>
+        <div class="depo-card">
+          <div class="balao">Os PDFs das aulas iam bagunçados pro ChatGPT. Agora meu resumo da semana sai em minutos.</div>
+          <div class="autor"><div class="foto">J</div><p><b>Júlia Sampaio</b>estudante de medicina</p></div>
+        </div>
+        <div class="depo-card">
+          <div class="balao">O contador de tokens sozinho já vale. Eu desperdiçava metade do contexto sem saber.</div>
+          <div class="autor"><div class="foto">P</div><p><b>Pedro Valença</b>redator</p></div>
+        </div>
+        <div class="depo-card">
+          <div class="balao">Página pesada de JavaScript, achei que não ia. Veio limpa e organizada.</div>
+          <div class="autor"><div class="foto">C</div><p><b>Camila Brandt</b>jornalista</p></div>
+        </div>
+        <div class="depo-card">
+          <div class="balao">Sem login, sem extensão, sem aba nova. Mando o link e pronto.</div>
+          <div class="autor"><div class="foto">B</div><p><b>Bruno Meireles</b>consultor</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PLANOS -->
   <section class="plans" id="planos">
-    <h2>Simples e transparente</h2>
-    <p>Comece grátis. Faça upgrade quando precisar de mais.</p>
-    <div class="plan-cards">
-      <div class="plan">
-        <div class="plan-name">Free</div>
-        <div class="plan-price">R$ 0</div>
-        <div class="plan-desc">Para sempre gratuito</div>
-        <ul>
-          <li>5 URLs por dia</li><li>2 PDFs por dia</li><li>Contador de tokens</li>
-          <li>Comando /status e /ajuda</li><li class="muted">Suporte prioritário</li><li class="muted">Limites ilimitados</li>
-        </ul>
+    <div class="wrap">
+      <p class="kicker reveal">Planos</p>
+      <h2 class="reveal">Comece grátis. Suba quando precisar.</h2>
+      <p class="section-sub reveal">Pagamento por PIX, ativação automática em segundos — tudo sem sair do WhatsApp.</p>
+
+      <div class="plans-grid">
+        <div class="plan reveal">
+          <div class="plan-nome">Free</div>
+          <div class="plan-preco"><sup>R$</sup>0</div>
+          <p class="plan-desc">Para testar sem compromisso</p>
+          <ul>
+            <li><b>5 links</b> por dia</li>
+            <li><b>2 PDFs</b> por dia</li>
+            <li>Contador de tokens <b>ilimitado</b></li>
+          </ul>
+          <a class="btn ghost" href="https://wa.me/5511955020393?text=Oi">Começar grátis</a>
+        </div>
+
+        <div class="plan reveal d1">
+          <div class="plan-nome">Starter</div>
+          <div class="plan-preco"><sup>R$</sup>9<small>/mês</small></div>
+          <p class="plan-desc">Menos de R$0,30 por dia</p>
+          <ul>
+            <li><b>15 links</b> por dia</li>
+            <li><b>8 PDFs</b> por dia</li>
+            <li>Contador de tokens ilimitado</li>
+          </ul>
+          <a class="btn ghost" href="https://wa.me/5511955020393?text=%2Fassinar%20starter">Assinar via PIX</a>
+        </div>
+
+        <div class="plan destaque reveal d2">
+          <div class="plan-nome">Pro</div>
+          <div class="plan-preco"><sup>R$</sup>19<small>/mês</small></div>
+          <p class="plan-desc">Para uso intenso, todo dia</p>
+          <ul>
+            <li><b>50 links</b> por dia</li>
+            <li><b>20 PDFs</b> por dia</li>
+            <li><b>Sem branding</b> nas respostas</li>
+            <li>Motor extra para páginas difíceis</li>
+          </ul>
+          <a class="btn pulsa" href="https://wa.me/5511955020393?text=%2Fassinar%20pro">Assinar via PIX</a>
+        </div>
+
+        <div class="plan reveal d3">
+          <div class="plan-nome">Equipe</div>
+          <div class="plan-preco"><sup>R$</sup>79<small>/mês</small></div>
+          <p class="plan-desc">Para times e uso pesado</p>
+          <ul>
+            <li>Uso <b>ilimitado</b></li>
+            <li>Até <b>5 usuários</b></li>
+            <li>Webhook/API disponível</li>
+          </ul>
+          <a class="btn ghost" href="https://wa.me/5511955020393?text=%2Fassinar%20equipe">Assinar via PIX</a>
+        </div>
       </div>
-      <div class="plan featured">
-        <div class="plan-name">Pro — Em breve</div>
-        <div class="plan-price"><sup>R$</sup>19</div>
-        <div class="plan-desc">por mês</div>
-        <ul>
-          <li>URLs ilimitadas</li><li>PDFs ilimitados</li><li>Contador de tokens</li>
-          <li>Suporte prioritário</li><li>API de integração</li><li>Histórico exportável</li>
-        </ul>
-      </div>
+      <p class="plans-nota reveal">Todos os planos renovam a cada 30 dias. Renovou antes? Os dias restantes são somados — você nunca perde o que pagou.</p>
     </div>
   </section>
-  <section class="cta-bottom">
-    <h2>Pronto para começar?</h2>
-    <p>É grátis. É instantâneo. É pelo WhatsApp.</p>
-    <a class="btn-primary" href="https://wa.me/5511955020393?text=Oi">
-      <svg viewBox="0 0 24 24" fill="currentColor" style="width:22px;height:22px"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-      Abrir no WhatsApp
-    </a>
+
+  <!-- CTA FINAL -->
+  <section class="final">
+    <div class="blob blob-a" style="top:auto;bottom:-180px;right:-100px;"></div>
+    <div class="blob blob-b" style="bottom:auto;top:-160px;left:-120px;"></div>
+    <div class="wrap">
+      <h2 class="reveal">Teste agora. A primeira conversão leva menos de um minuto.</h2>
+      <p class="reveal">Sem cadastro, sem cartão, sem instalar nada. Mande um "oi", depois um link — e veja a diferença na sua próxima conversa com a IA.</p>
+      <a class="btn pulsa reveal" href="https://wa.me/5511955020393?text=Oi">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.96-.94 1.16-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.61.14-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.5 0 1.47 1.07 2.9 1.22 3.1.15.2 2.1 3.2 5.1 4.49.71.3 1.27.49 1.7.63.72.23 1.37.2 1.88.12.58-.09 1.76-.72 2-1.42.25-.7.25-1.3.18-1.42-.08-.13-.28-.2-.58-.35zM12.05 21.8h-.01a9.87 9.87 0 0 1-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 0 1-1.51-5.26c0-5.45 4.44-9.88 9.9-9.88a9.83 9.83 0 0 1 6.99 2.9 9.83 9.83 0 0 1 2.9 7c0 5.45-4.45 9.87-9.9 9.87zm8.42-18.3A11.82 11.82 0 0 0 12.05 0C5.5 0 .16 5.33.16 11.9c0 2.1.55 4.14 1.6 5.95L.06 24l6.3-1.65a11.88 11.88 0 0 0 5.68 1.45h.01c6.55 0 11.89-5.33 11.89-11.9 0-3.18-1.24-6.16-3.47-8.4z"/></svg>
+        Abrir conversa com o Poda
+      </a>
+    </div>
   </section>
+
   <footer>
-    <p>© 2026 Poda · Feito no Brasil 🇧🇷 &nbsp;·&nbsp; <a href="https://wa.me/5511955020393">Suporte via WhatsApp</a></p>
+    <div class="wrap">
+      <p>© 2026 Poda · Feito no Brasil 🇧🇷 · Seus documentos não ficam salvos no Poda · <a href="https://wa.me/5511955020393">Suporte via WhatsApp</a></p>
+    </div>
   </footer>
+
+  <script>
+    (function () {
+      var reduzMovimento = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      /* ── Reveal ao rolar (fade-in + slide-up) ── */
+      var reveals = document.querySelectorAll('.reveal');
+      if (reduzMovimento || !('IntersectionObserver' in window)) {
+        reveals.forEach(function (el) { el.classList.add('visivel'); });
+      } else {
+        var obs = new IntersectionObserver(function (entradas) {
+          entradas.forEach(function (e) {
+            if (e.isIntersecting) {
+              e.target.classList.add('visivel');
+              obs.unobserve(e.target);
+            }
+          });
+        }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+        reveals.forEach(function (el) { obs.observe(el); });
+      }
+
+      /* ── Simulação realista do chat: "digitando..." antes de cada resposta ── */
+      var bolhas = Array.prototype.slice.call(document.querySelectorAll('#chat .bubble'));
+      var digitando = document.getElementById('digitando');
+      var chat = document.getElementById('chat');
+
+      function esconderTudo() {
+        bolhas.forEach(function (b) { b.classList.remove('mostra'); });
+        digitando.classList.remove('mostra');
+      }
+
+      function espera(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+      function moverDigitandoAntesDe(bolha) {
+        chat.insertBefore(digitando, bolha);
+      }
+
+      async function rodarConversa() {
+        while (true) {
+          esconderTudo();
+          await espera(700);
+
+          /* usuário manda o link */
+          bolhas[0].classList.add('mostra');
+          await espera(500);
+
+          /* bot digita 1.5s e responde */
+          moverDigitandoAntesDe(bolhas[1]);
+          digitando.classList.add('mostra');
+          await espera(1500);
+          digitando.classList.remove('mostra');
+          bolhas[1].classList.add('mostra');
+          await espera(1600);
+
+          /* usuário elogia e manda PDF */
+          bolhas[2].classList.add('mostra');
+          await espera(600);
+
+          /* bot digita de novo e responde */
+          moverDigitandoAntesDe(bolhas[3]);
+          digitando.classList.add('mostra');
+          await espera(1500);
+          digitando.classList.remove('mostra');
+          bolhas[3].classList.add('mostra');
+
+          /* pausa antes de recomeçar */
+          await espera(6000);
+        }
+      }
+
+      if (reduzMovimento) {
+        bolhas.forEach(function (b) { b.classList.add('mostra'); });
+      } else {
+        rodarConversa();
+      }
+    })();
+  </script>
+
 </body>
-  </html>
+</html>
