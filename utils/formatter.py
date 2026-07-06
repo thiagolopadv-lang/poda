@@ -9,14 +9,16 @@ Limites do WhatsApp:
 from config import settings
 
 MAX_WHATSAPP_CHARS = 4_000  # Margem de segurança abaixo de 4.096
-FOOTER_FREE = "\n\n—\n🌱 _Enviado pelo Poda_ · poda.io"
+FOOTER_FREE = "\n\n—\n🌱 _Enviado pelo Poda_ · poda.digital"
+
+# Branding aparece no Free e no Starter; "sem branding" é diferencial do Pro+.
+PLANOS_COM_BRANDING = ("free", "starter")
 
 
 def formatar_resultado_url(
     markdown: str,
     tokens_antes: int,
     tokens_depois: int,
-    custo_economizado_brl: float,
     plano: str = "free",
 ) -> tuple[str, str | None]:
     """
@@ -30,13 +32,12 @@ def formatar_resultado_url(
         f"✅ *Página convertida com sucesso*\n\n"
         f"📊 *Compressão realizada:*\n"
         f"   Antes:  ~{tokens_antes:,} tokens (HTML bruto)\n"
-        f"   Depois:  {tokens_depois:,} tokens (Markdown limpo)\n"
-        f"   Economia: *{economia_pct}%*\n\n"
-        f"   💰 Em GPT-4o isso equivale a ~R${custo_economizado_brl:.2f} economizados\n"
+        f"   Depois:  {tokens_depois:,} tokens (Markdown limpo)\n\n"
+        f"   ✂️ Você economizou *{economia_pct}%* dos tokens\n"
         f"   nesta única requisição.\n"
     )
 
-    if plano == "free":
+    if plano in PLANOS_COM_BRANDING:
         cabecalho += FOOTER_FREE
 
     conteudo_completo = cabecalho + "\n\n" + markdown
@@ -63,7 +64,7 @@ def formatar_resultado_pdf(
         f"_O conteúdo foi estruturado em Markdown, pronto para colar no seu LLM._\n"
     )
 
-    if plano == "free":
+    if plano in PLANOS_COM_BRANDING:
         cabecalho += FOOTER_FREE
 
     conteudo_completo = cabecalho + "\n\n" + markdown
@@ -116,7 +117,7 @@ def formatar_erro(motivo: str) -> str:
     return f"❌ *Não consegui processar isso.*\n\n{motivo}\n\nTente novamente ou envie outro conteúdo."
 
 
-def formatar_limite_atingido(tipo: str, limite: int, link_upgrade: str = "poda.io/pro") -> str:
+def formatar_limite_atingido(tipo: str, limite: int, link_upgrade: str = "poda.digital/#planos") -> str:
     """Mensagem quando o usuário atinge o limite do plano free."""
     return (
         f"⚠️ *Limite diário atingido*\n\n"
@@ -127,7 +128,7 @@ def formatar_limite_atingido(tipo: str, limite: int, link_upgrade: str = "poda.i
     )
 
 
-def formatar_nao_suportado() -> str:
+def formatar_nao_suportado(tipo_raw: str = "") -> str:
     """Mensagem para tipos de arquivo não suportados."""
     return (
         "🤔 *Não reconheci esse tipo de conteúdo.*\n\n"
