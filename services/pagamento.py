@@ -86,6 +86,7 @@ async def criar_cobranca_pix(
     Retorna: {payment_id, pix_copia_cola, qr_code_image, preco, expira_em}
     """
     precos = {
+        "starter": settings.PLANO_STARTER_PRECO,
         "pro": settings.PLANO_PRO_PRECO,
         "equipe": settings.PLANO_EQUIPE_PRECO,
     }

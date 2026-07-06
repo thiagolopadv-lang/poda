@@ -5,9 +5,10 @@ Usa Redis para persistência entre reinicializações do servidor.
 Fallback automático para memória se REDIS_URL não estiver configurado.
 
 Planos:
-  free   — 5 URLs/dia, 2 PDFs/dia
-  pro    — 50 URLs/dia, 20 PDFs/dia
-  equipe — ilimitado
+  free    — 5 URLs/dia, 2 PDFs/dia
+  starter — 15 URLs/dia, 8 PDFs/dia
+  pro     — 50 URLs/dia, 20 PDFs/dia
+  equipe  — ilimitado
 """
 
 import logging
@@ -25,14 +26,18 @@ _redis_client = None
 
 LIMITES_URL = {
     "free": settings.FREE_URL_LIMIT_PER_DAY,
+    "starter": settings.STARTER_URL_LIMIT_PER_DAY,
     "pro": settings.PRO_URL_LIMIT_PER_DAY,
     "equipe": None,
 }
 LIMITES_PDF = {
     "free": settings.FREE_PDF_LIMIT_PER_DAY,
+    "starter": settings.STARTER_PDF_LIMIT_PER_DAY,
     "pro": settings.PRO_PDF_LIMIT_PER_DAY,
     "equipe": None,
 }
+
+PLANOS_PAGOS = ("starter", "pro", "equipe")
 
 
 def _get_redis():
@@ -69,11 +74,13 @@ class RateLimiter:
         return _get_redis()
 
     def _chave(self, tipo: str, numero: str) -> str:
-        hoje = date.today().isoformat()
+        # Usa a data de Brasília — mesma referência do TTL (meia-noite Brasília).
+        # date.today() usaria UTC no servidor e viraria o "dia" às 21h de Brasília.
+        hoje = datetime.now(BRASILIA).date().isoformat()
         return f"poda:{tipo}:{hoje}:{numero}"
 
     def _resetar_memoria(self, numero: str) -> None:
-        hoje = date.today()
+        hoje = datetime.now(BRASILIA).date()
         if self._memoria[numero]["data"] != hoje:
             self._memoria[numero] = {"data": hoje, "urls": 0, "pdfs": 0}
 
@@ -91,7 +98,7 @@ class RateLimiter:
         if redis:
             try:
                 plano = await redis.get(f"poda:plano:{numero}")
-                return plano if plano in ("pro", "equipe") else "free"
+                return plano if plano in PLANOS_PAGOS else "free"
             except Exception as e:
                 logger.warning(f"Redis erro em get_plano: {e}")
         return "free"
@@ -102,9 +109,22 @@ class RateLimiter:
         redis = _get_redis()
         if redis:
             try:
+                chave = f"poda:plano:{numero}"
                 ttl = dias * 86400
-                await redis.setex(f"poda:plano:{numero}", ttl, plano)
-                logger.info(f"Plano {plano} ativado para {numero} por {dias} dias.")
+                # Renovação antecipada do MESMO plano: soma os dias restantes,
+                # para o usuário não perder o período já pago.
+                # Upgrade/downgrade (plano diferente): começa novo ciclo de 30 dias.
+                try:
+                    plano_atual = await redis.get(chave)
+                    ttl_restante = await redis.ttl(chave)
+                    if plano_atual == plano and ttl_restante and ttl_restante > 0:
+                        ttl += ttl_restante
+                except Exception:
+                    pass
+                await redis.setex(chave, ttl, plano)
+                logger.info(
+                    f"Plano {plano} ativado para {numero} até +{ttl // 86400} dias."
+                )
             except Exception as e:
                 logger.error(f"Redis erro em set_plano: {e}")
 
