@@ -57,3 +57,8 @@ def extrair_url(body: str) -> str | None:
     """Extrai a primeira URL encontrada no corpo da mensagem."""
     match = URL_PATTERN.search(body)
     return match.group(0) if match else None
+
+
+def extrair_urls(body: str) -> list[str]:
+    """Extrai todas as URLs encontradas no corpo da mensagem."""
+    return URL_PATTERN.findall(body)
