@@ -8,7 +8,7 @@ import logging
 from fastapi import APIRouter, Request, BackgroundTasks
 from fastapi.responses import JSONResponse
 
-from utils.detector import detectar_tipo, extrair_url, ContentType
+from utils.detector import detectar_tipo, extrair_url, extrair_urls, ContentType
 from utils.formatter import formatar_nao_suportado
 from services.whatsapp_api import enviar_texto, marcar_como_lida
 from services.rate_limiter import rate_limiter
@@ -153,8 +153,13 @@ async def _rotear_mensagem(numero: str, message: dict) -> None:
         # Verificar se há estado pendente (aguardando CPF/CNPJ)
         pending = await _get_pendente(numero)
         if pending:
-            await _processar_cpf_pendente(numero, body_text, pending)
-            return
+            # Se o usuário mandou um link em vez do CPF, ele mudou de ideia:
+            # sai do fluxo de pagamento e processa o conteúdo normalmente.
+            if extrair_url(body_text):
+                await _limpar_pendente(numero)
+            else:
+                await _processar_cpf_pendente(numero, body_text, pending)
+                return
 
         # Comando desconhecido começando com "/" → orientar em vez de analisar como texto
         if body_lower.startswith("/"):
@@ -177,11 +182,18 @@ async def _rotear_mensagem(numero: str, message: dict) -> None:
 
         if tipo == ContentType.URL:
             await metrics.registrar_mensagem_recebida(numero, "url")
-            url = extrair_url(body_text)
+            urls = extrair_urls(body_text)
+            url = urls[0] if urls else None
             if url:
                 if not await rate_limiter.pode_processar_url(numero):
                     await enviar_texto(numero, await _msg_limite("url", numero))
                     return
+                if len(urls) > 1:
+                    await enviar_texto(
+                        numero,
+                        f"ℹ️ _Encontrei {len(urls)} links na mensagem — vou processar o primeiro._\n"
+                        "_Para converter os outros, mande um link por mensagem._",
+                    )
                 await rate_limiter.registrar_url(numero)
                 await enviar_texto(numero, "⏳ _Processando o link..._")
                 await url_handler.processar_url(numero, url)

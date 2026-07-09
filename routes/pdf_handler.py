@@ -6,7 +6,7 @@ Fluxo: baixa PDF → PyMuPDF4LLM → Marker → LlamaParse → erro
 import logging
 import tiktoken
 
-from services.pdf_parser import pdf_para_markdown
+from services.pdf_parser import pdf_para_markdown, PDFEscaneadoError
 from services.whatsapp_api import baixar_midia, enviar_texto, enviar_arquivo_texto
 from utils.formatter import formatar_resultado_pdf, formatar_erro
 
@@ -41,6 +41,20 @@ async def processar_pdf(numero: str, media_id: str) -> None:
     # --- Converter para Markdown ---
     try:
         markdown, num_paginas = await pdf_para_markdown(pdf_bytes)
+    except PDFEscaneadoError:
+        logger.info("PDF escaneado detectado — sem OCR disponível.")
+        await enviar_texto(
+            numero,
+            "📄 *Este PDF é uma imagem digitalizada (escaneado).*\n\n"
+            "Ele não tem texto selecionável — é o caso comum de matrículas de imóvel, "
+            "certidões e documentos digitalizados em cartório.\n\n"
+            "Por enquanto não faço leitura de imagem (OCR). O que funciona:\n"
+            "• PDFs gerados digitalmente (sites, sistemas, Word)\n"
+            "• Documentos onde dá para *selecionar o texto* no leitor de PDF\n\n"
+            "💡 _Dica: se o documento veio de um sistema online, baixe a versão "
+            "digital em vez da digitalizada._",
+        )
+        return
     except Exception as e:
         logger.error(f"Erro ao converter PDF: {e}")
         await enviar_texto(
