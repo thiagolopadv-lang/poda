@@ -10,6 +10,24 @@ import tempfile
 logger = logging.getLogger("poda.pdf_parser")
 
 
+class PDFEscaneadoError(ValueError):
+    """PDF sem camada de texto (escaneado/imagem) e nenhum OCR disponível."""
+
+
+def _parece_escaneado(caminho: str) -> bool:
+    """Verifica se o PDF tem páginas mas quase nenhum texto extraível (escaneado)."""
+    try:
+        import pymupdf
+
+        doc = pymupdf.open(caminho)
+        num_paginas = len(doc)
+        chars = sum(len(pagina.get_text()) for pagina in doc)
+        doc.close()
+        return num_paginas > 0 and chars < num_paginas * 50
+    except Exception:
+        return False
+
+
 async def pdf_para_markdown(pdf_bytes: bytes) -> tuple[str, int]:
     """
     Converte bytes de um PDF em Markdown estruturado.
@@ -43,6 +61,13 @@ async def pdf_para_markdown(pdf_bytes: bytes) -> tuple[str, int]:
             markdown, num_paginas = resultado
             logger.info(f"LlamaParse: sucesso — {num_paginas} páginas, {len(markdown)} chars")
             return markdown, num_paginas
+
+        # Diagnóstico: se o PDF tem páginas mas quase nenhum texto,
+        # é um documento escaneado (imagem) — e não há OCR disponível.
+        if _parece_escaneado(tmp_path):
+            raise PDFEscaneadoError(
+                "PDF escaneado (imagem digitalizada) sem camada de texto."
+            )
 
         raise ValueError("Nenhuma ferramenta conseguiu processar o PDF.")
 
