@@ -4,9 +4,11 @@ Fluxo: Jina Reader → fallback Firecrawl → erro
 """
 
 import logging
+import time
 import tiktoken
 
 from services import jina, firecrawl
+from services import metricas_comerciais
 from services.whatsapp_api import enviar_texto, enviar_arquivo_texto
 from utils.formatter import (
     formatar_resultado_url,
@@ -22,6 +24,7 @@ async def processar_url(numero: str, url: str) -> None:
     Orquestra a conversão de URL para Markdown e envia o resultado ao usuário.
     """
     markdown = None
+    inicio = time.monotonic()
 
     # --- Tentativa 1: Jina Reader ---
     try:
@@ -38,6 +41,7 @@ async def processar_url(numero: str, url: str) -> None:
 
     # --- Falha total ---
     if not markdown:
+        await metricas_comerciais.registrar_erro("url", "parse_fail")
         await enviar_texto(
             numero,
             formatar_erro(
@@ -73,3 +77,7 @@ async def processar_url(numero: str, url: str) -> None:
         # Cabeçalho primeiro, depois o conteúdo
         await enviar_texto(numero, cabecalho)
         await enviar_arquivo_texto(numero, conteudo_separado, "resultado.md")
+
+    await metricas_comerciais.registrar_latencia(
+        "url", int((time.monotonic() - inicio) * 1000)
+    )

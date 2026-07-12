@@ -4,8 +4,10 @@ Fluxo: baixa PDF → PyMuPDF4LLM → Marker → LlamaParse → erro
 """
 
 import logging
+import time
 import tiktoken
 
+from services import metricas_comerciais
 from services.pdf_parser import pdf_para_markdown, PDFEscaneadoError
 from services.whatsapp_api import baixar_midia, enviar_texto, enviar_arquivo_texto
 from utils.formatter import formatar_resultado_pdf, formatar_erro
@@ -27,8 +29,11 @@ async def processar_pdf(numero: str, media_id: str) -> None:
         await enviar_texto(numero, formatar_erro("Não consegui baixar o arquivo. Tente reenviar o PDF."))
         return
 
+    inicio = time.monotonic()
+
     # Verificar tamanho
     if len(pdf_bytes) > MAX_PDF_SIZE_BYTES:
+        await metricas_comerciais.registrar_erro("pdf", "too_large")
         await enviar_texto(
             numero,
             formatar_erro(
@@ -57,6 +62,7 @@ async def processar_pdf(numero: str, media_id: str) -> None:
         return
     except Exception as e:
         logger.error(f"Erro ao converter PDF: {e}")
+        await metricas_comerciais.registrar_erro("pdf", "parse_fail")
         await enviar_texto(
             numero,
             formatar_erro(
@@ -86,3 +92,7 @@ async def processar_pdf(numero: str, media_id: str) -> None:
     else:
         await enviar_texto(numero, cabecalho)
         await enviar_arquivo_texto(numero, conteudo_separado, "documento.md")
+
+    await metricas_comerciais.registrar_latencia(
+        "pdf", int((time.monotonic() - inicio) * 1000)
+    )

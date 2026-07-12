@@ -16,6 +16,7 @@ from services.metricas_comerciais import (
     obter_erros_hoje,
     obter_funil_hoje,
     obter_latencias,
+    reconciliar_assinantes,
 )
 from services.rate_limiter import rate_limiter
 
@@ -47,14 +48,19 @@ async def api_comercial(request: Request):
     if not await _sessao_valida(session_id):
         return JSONResponse(status_code=401, content={"erro": "Não autenticado"})
 
-    try:
-        pro    = int(await rate_limiter.redis.scard("poda:assinantes:pro") or 0)
-        equipe = int(await rate_limiter.redis.scard("poda:assinantes:equipe") or 0)
-        free   = int(await rate_limiter.redis.scard("poda:assinantes:free") or 0)
-    except Exception:
-        pro = equipe = free = 0
+    # Reconciliação: conta assinantes válidos e remove expirados dos sets
+    contagem = await reconciliar_assinantes()
+    starter = contagem.get("starter", 0)
+    pro     = contagem.get("pro", 0)
+    equipe  = contagem.get("equipe", 0)
 
-    mrr      = await calcular_mrr(pro, equipe,
+    try:
+        free = int(await rate_limiter.redis.scard("poda:assinantes:free") or 0)
+    except Exception:
+        free = 0
+
+    mrr      = await calcular_mrr(starter, pro, equipe,
+                                  settings.PLANO_STARTER_PRECO,
                                   settings.PLANO_PRO_PRECO,
                                   settings.PLANO_EQUIPE_PRECO)
     funil    = await obter_funil_hoje()
@@ -63,15 +69,16 @@ async def api_comercial(request: Request):
 
     try:
         hoje = date.today().isoformat()
-        novos_pro    = int(await rate_limiter.redis.get(f"poda:conv:new:pro:{hoje}") or 0)
-        novos_equipe = int(await rate_limiter.redis.get(f"poda:conv:new:equipe:{hoje}") or 0)
-        churn_hoje   = int(await rate_limiter.redis.get(f"poda:churn:total:{hoje}") or 0)
+        novos_starter = int(await rate_limiter.redis.get(f"poda:conv:new:starter:{hoje}") or 0)
+        novos_pro     = int(await rate_limiter.redis.get(f"poda:conv:new:pro:{hoje}") or 0)
+        novos_equipe  = int(await rate_limiter.redis.get(f"poda:conv:new:equipe:{hoje}") or 0)
+        churn_hoje    = int(await rate_limiter.redis.get(f"poda:churn:total:{hoje}") or 0)
     except Exception:
-        novos_pro = novos_equipe = churn_hoje = 0
+        novos_starter = novos_pro = novos_equipe = churn_hoje = 0
 
     return {
-        "planos":    {"free": free, "pro": pro, "equipe": equipe},
-        "financeiro": {**mrr, "novos_pro": novos_pro,
+        "planos":    {"free": free, "starter": starter, "pro": pro, "equipe": equipe},
+        "financeiro": {**mrr, "novos_starter": novos_starter, "novos_pro": novos_pro,
                        "novos_equipe": novos_equipe, "churn_hoje": churn_hoje},
         "funil":    funil,
         "latencia": latencia,
@@ -174,16 +181,18 @@ function render(d){
   '<div class="row" style="margin-top:12px"><span class="label">ARR projetado</span><span class="val">'+fmt_brl(f.arr)+'</span></div>' +
   '<div class="row"><span class="label">Ticket m\xe9dio</span><span class="val">'+fmt_brl(f.ticket_medio)+'</span></div>' +
   '<div class="row"><span class="label">Total pagantes</span><span class="val">'+f.total_pagantes+'</span></div>' +
+  '<div class="row"><span class="label">Novos Starter hoje</span><span class="val" style="color:var(--green)">+'+(f.novos_starter||0)+'</span></div>' +
   '<div class="row"><span class="label">Novos Pro hoje</span><span class="val" style="color:var(--green)">+'+f.novos_pro+'</span></div>' +
   '<div class="row"><span class="label">Novos Equipe hoje</span><span class="val" style="color:var(--green)">+'+f.novos_equipe+'</span></div>' +
   '<div class="row"><span class="label">Churn hoje</span><span class="val" style="color:'+(f.churn_hoje>0?'var(--red)':'var(--text)')+'">-'+f.churn_hoje+'</span></div></div>' +
 
   '<div class="card"><h2>&#x1F4CA; Assinantes por Plano</h2>' +
   '<div class="row"><span class="label">Free</span><span class="val">'+pl.free+'</span></div>' +
+  '<div class="row"><span class="label">Starter &mdash; R$9/m\xeas</span><span class="val">'+(pl.starter||0)+'</span></div>' +
   '<div class="row"><span class="label">Pro &mdash; R$19/m\xeas</span><span class="val">'+pl.pro+'</span></div>' +
   '<div class="row"><span class="label">Equipe &mdash; R$79/m\xeas</span><span class="val">'+pl.equipe+'</span></div>' +
   '<div class="row" style="margin-top:8px"><span class="label">Taxa pago/total</span>' +
-  '<span class="val">'+(pl.free+pl.pro+pl.equipe>0?((pl.pro+pl.equipe)/(pl.free+pl.pro+pl.equipe)*100).toFixed(1):0)+'%</span></div></div>' +
+  '<span class="val">'+(pl.free+(pl.starter||0)+pl.pro+pl.equipe>0?(((pl.starter||0)+pl.pro+pl.equipe)/(pl.free+(pl.starter||0)+pl.pro+pl.equipe)*100).toFixed(1):0)+'%</span></div></div>' +
 
   '<div class="card"><h2>&#x1F504; Funil de Convers\xe3o &mdash; Hoje</h2>' +
   '<div class="funnel">'+bar(funil.limite_atingido,'Atingiram<br>limite')+bar(funil.intent_upgrade,'Pediram<br>/planos')+bar(funil.cpf_informado,'CPF<br>informado')+bar(funil.pix_gerado,'PIX<br>gerado')+bar(funil.pago,'Pago ✓')+'</div>' +

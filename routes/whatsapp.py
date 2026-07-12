@@ -13,6 +13,7 @@ from utils.formatter import formatar_nao_suportado
 from services.whatsapp_api import enviar_texto, marcar_como_lida
 from services.rate_limiter import rate_limiter
 from services import metrics
+from services import metricas_comerciais
 from routes import url_handler, pdf_handler, token_handler
 
 logger = logging.getLogger("poda.whatsapp")
@@ -248,6 +249,7 @@ async def _rotear_mensagem(numero: str, message: dict) -> None:
 
 async def _msg_limite(tipo: str, numero: str) -> str:
     """Mensagem de limite diário atingido, com CTA de upgrade escalonado por plano."""
+    await metricas_comerciais.registrar_limite_atingido(numero, tipo)
     plano = await rate_limiter.get_plano(numero)
     recurso = "URLs" if tipo == "url" else "PDFs"
     msg = (
@@ -402,6 +404,7 @@ async def _processar_comando(numero: str, comando: str, texto_completo: str = ""
         await enviar_texto(numero, MENSAGEM_BOAS_VINDAS)
 
     elif comando in {"/planos", "/plano"}:
+        await metricas_comerciais.registrar_intent_upgrade(numero)
         await enviar_texto(numero, MENSAGEM_PLANOS)
 
     elif comando in {"/starter", "/pro", "/equipe"}:
@@ -465,6 +468,7 @@ async def _processar_cpf_pendente(numero: str, texto: str, plano: str) -> None:
 
     # Limpar estado pendente antes de processar
     await _limpar_pendente(numero)
+    await metricas_comerciais.registrar_cpf_informado(numero)
 
     await enviar_texto(numero, "⏳ _Gerando cobrança PIX..._")
 
@@ -492,6 +496,8 @@ async def _processar_cpf_pendente(numero: str, texto: str, plano: str) -> None:
     preco = resultado.get("preco", 0)
     pix = resultado.get("pix_copia_cola", "")
     payment_id = resultado.get("payment_id", "")
+
+    await metricas_comerciais.registrar_pix_gerado(numero, plano, float(preco))
 
     mensagem = (
         f"💳 *PIX — Plano {nome_plano}*\n\n"

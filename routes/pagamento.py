@@ -76,6 +76,11 @@ async def webhook_asaas(request: Request):
                     logger.warning(f"Dedup indisponível para {payment_id}: {e}")
 
             await rate_limiter.set_plano(telefone, plano)
+            try:
+                from services.metricas_comerciais import registrar_pagamento_confirmado
+                await registrar_pagamento_confirmado(telefone, plano)
+            except Exception as e:
+                logger.warning(f"Erro ao registrar funil de pagamento: {e}")
             logger.info(f"Plano {plano} ativado para {telefone}")
 
             # Notificar o usuário via WhatsApp
