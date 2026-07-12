@@ -51,12 +51,13 @@ async def webhook_asaas(request: Request):
         raise HTTPException(status_code=400, detail="Payload inválido")
 
     event = payload.get("event", "")
-    payment = payload.get("payment", {})
+    payment = payload.get("payment") or {}
 
     logger.info(f"Asaas webhook: event={event}, payment_id={payment.get('id')}")
 
     if event == "PAYMENT_RECEIVED":
-        external_ref = payment.get("externalReference", "")
+        # externalReference pode ser null (ex.: cobranças avulsas fora do Poda)
+        external_ref = payment.get("externalReference") or ""
         parts = external_ref.split("|")
         if len(parts) == 2:
             telefone, plano = parts
