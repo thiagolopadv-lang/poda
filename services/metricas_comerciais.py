@@ -4,16 +4,20 @@ Módulo complementar ao services/metrics.py com inteligência comercial.
 """
 import json
 import time
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 from services.rate_limiter import rate_limiter
+
+BRASILIA = ZoneInfo("America/Sao_Paulo")
 
 
 # ── Helpers internos ──────────────────────────────────────────────────────────
 
 def _hoje() -> str:
-    return date.today().isoformat()
+    # Data de Brasília — consistente com os contadores do rate_limiter
+    return datetime.now(BRASILIA).date().isoformat()
 
 
 async def _incr(key: str, ex: int = 86400 * 30) -> None:
@@ -218,17 +222,47 @@ async def obter_erros_hoje() -> dict:
 
 
 async def calcular_mrr(
+    assinantes_starter: int,
     assinantes_pro: int,
     assinantes_equipe: int,
+    preco_starter: float = 9.0,
     preco_pro: float = 19.0,
     preco_equipe: float = 79.0,
 ) -> dict:
-    """Calcula MRR e ARR a partir dos assinantes atuais."""
-    mrr = assinantes_pro * preco_pro + assinantes_equipe * preco_equipe
-    total_pagantes = assinantes_pro + assinantes_equipe
+    """Calcula MRR e ARR a partir dos assinantes atuais (inclui Starter)."""
+    mrr = (
+        assinantes_starter * preco_starter
+        + assinantes_pro * preco_pro
+        + assinantes_equipe * preco_equipe
+    )
+    total_pagantes = assinantes_starter + assinantes_pro + assinantes_equipe
     return {
         "mrr":          round(mrr, 2),
         "arr":          round(mrr * 12, 2),
         "ticket_medio": round(mrr / total_pagantes, 2) if total_pagantes > 0 else 0.0,
         "total_pagantes": total_pagantes,
     }
+
+
+async def reconciliar_assinantes() -> dict:
+    """
+    Conta assinantes por plano e remove dos sets quem já expirou
+    (a chave poda:plano:{numero} some quando o TTL vence).
+    Torna o painel autocorretivo e registra churn passivo.
+    """
+    contagem = {"starter": 0, "pro": 0, "equipe": 0}
+    for plano in contagem:
+        try:
+            membros = await rate_limiter.redis.smembers(f"poda:assinantes:{plano}")
+            for numero in membros or []:
+                atual = await rate_limiter.redis.get(f"poda:plano:{numero}")
+                if atual == plano:
+                    contagem[plano] += 1
+                else:
+                    # Expirou ou mudou de plano — sai do set e conta churn se virou free
+                    await rate_limiter.redis.srem(f"poda:assinantes:{plano}", numero)
+                    if not atual:
+                        await registrar_churn(numero, plano)
+        except Exception:
+            pass
+    return contagem

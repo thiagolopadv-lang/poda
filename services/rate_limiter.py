@@ -114,6 +114,7 @@ class RateLimiter:
                 # Renovação antecipada do MESMO plano: soma os dias restantes,
                 # para o usuário não perder o período já pago.
                 # Upgrade/downgrade (plano diferente): começa novo ciclo de 30 dias.
+                plano_atual = None
                 try:
                     plano_atual = await redis.get(chave)
                     ttl_restante = await redis.ttl(chave)
@@ -122,6 +123,22 @@ class RateLimiter:
                 except Exception:
                     pass
                 await redis.setex(chave, ttl, plano)
+
+                # Mantém os sets de assinantes (base do MRR no painel comercial)
+                try:
+                    for p in PLANOS_PAGOS:
+                        if p != plano:
+                            await redis.srem(f"poda:assinantes:{p}", numero)
+                    await redis.sadd(f"poda:assinantes:{plano}", numero)
+                    # Conta como NOVO assinante apenas se não é renovação do mesmo plano
+                    if plano_atual != plano:
+                        hoje = datetime.now(BRASILIA).date().isoformat()
+                        chave_new = f"poda:conv:new:{plano}:{hoje}"
+                        await redis.incr(chave_new)
+                        await redis.expire(chave_new, 86400 * 30)
+                except Exception as e:
+                    logger.warning(f"Erro ao atualizar sets de assinantes: {e}")
+
                 logger.info(
                     f"Plano {plano} ativado para {numero} até +{ttl // 86400} dias."
                 )
