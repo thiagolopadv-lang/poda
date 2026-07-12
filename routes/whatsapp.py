@@ -135,6 +135,19 @@ async def _rotear_mensagem(numero: str, message: dict) -> None:
         body_text = message.get("text", {}).get("body", "").strip()
         body_lower = body_text.lower()
 
+        # Saudação vinda do site (CTA da landing) → conta a conversão e dá boas-vindas
+        if body_lower.startswith("oi! vim pelo site"):
+            await metrics.registrar_mensagem_recebida(numero, "saudacao")
+            try:
+                from datetime import date as _date
+                chave = f"poda:site:wa_in:{_date.today().isoformat()}"
+                await rate_limiter.redis.incr(chave)
+                await rate_limiter.redis.expire(chave, 86400 * 60)
+            except Exception:
+                pass
+            await enviar_texto(numero, MENSAGEM_BOAS_VINDAS)
+            return
+
         # Saudação → boas-vindas
         if body_lower in SAUDACOES or len(body_lower) <= 3:
             await metrics.registrar_mensagem_recebida(numero, "saudacao")

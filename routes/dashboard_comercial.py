@@ -39,6 +39,56 @@ async def _sessao_valida(session_id: str) -> bool:
     return False
 
 
+# ── Analytics do site (sem cookies, sem dados pessoais — LGPD-friendly) ─────
+
+EVENTOS_SITE_VALIDOS = {
+    "pageview", "cta_hero", "cta_nav", "cta_final",
+    "cta_planos_free", "cta_planos_starter", "cta_planos_pro", "cta_planos_equipe",
+}
+
+
+@router.post("/api/site/hit")
+async def site_hit(request: Request):
+    """
+    Beacon de analytics da landing page. Recebe {"evento": "..."} e incrementa
+    contadores diários no Redis. Não coleta IP, cookie nem dado pessoal.
+    """
+    try:
+        body = await request.json()
+        evento = str(body.get("evento", ""))[:40]
+    except Exception:
+        evento = ""
+    if evento not in EVENTOS_SITE_VALIDOS:
+        return JSONResponse(status_code=204, content=None)
+    try:
+        hoje = date.today().isoformat()
+        chave = f"poda:site:{evento}:{hoje}"
+        await rate_limiter.redis.incr(chave)
+        await rate_limiter.redis.expire(chave, 86400 * 60)
+    except Exception:
+        pass
+    return JSONResponse(status_code=204, content=None)
+
+
+async def _stats_site() -> dict:
+    """Visitas e cliques de CTA do site — hoje."""
+    hoje = date.today().isoformat()
+    stats = {}
+    try:
+        for ev in EVENTOS_SITE_VALIDOS:
+            val = await rate_limiter.redis.get(f"poda:site:{ev}:{hoje}")
+            stats[ev] = int(val or 0)
+        # Quantos abriram conversa vindos do site (saudação "Oi! Vim pelo site")
+        val = await rate_limiter.redis.get(f"poda:site:wa_in:{hoje}")
+        stats["chegou_whatsapp"] = int(val or 0)
+    except Exception:
+        stats = {ev: 0 for ev in EVENTOS_SITE_VALIDOS}
+        stats["chegou_whatsapp"] = 0
+    stats["cliques_total"] = sum(v for k, v in stats.items()
+                                 if k.startswith("cta_"))
+    return stats
+
+
 # ── API: dados comerciais consolidados ───────────────────────────────────────
 
 @router.get("/api/comercial")
@@ -76,6 +126,8 @@ async def api_comercial(request: Request):
     except Exception:
         novos_starter = novos_pro = novos_equipe = churn_hoje = 0
 
+    site = await _stats_site()
+
     return {
         "planos":    {"free": free, "starter": starter, "pro": pro, "equipe": equipe},
         "financeiro": {**mrr, "novos_starter": novos_starter, "novos_pro": novos_pro,
@@ -83,6 +135,7 @@ async def api_comercial(request: Request):
         "funil":    funil,
         "latencia": latencia,
         "erros":    erros,
+        "site":     site,
     }
 
 
@@ -214,7 +267,17 @@ function render(d){
   '<div class="row"><span class="label">PDF parse_fail</span><span class="val">'+((err.pdf&&err.pdf.parse_fail)||0)+'</span></div>' +
   '<div class="row"><span class="label">PIX fail</span><span class="val">'+((err.pix&&err.pix.fail)||0)+'</span></div>' +
   '<div class="row" style="font-weight:700"><span>Total de erros</span>' +
-  '<span class="badge '+(err.total===0?'ok':err.total<10?'warn':'err')+'">'+err.total+'</span></div></div>';
+  '<span class="badge '+(err.total===0?'ok':err.total<10?'warn':'err')+'">'+err.total+'</span></div></div>' +
+
+  (d.site ? (
+  '<div class="card"><h2>&#x1F310; Site poda.digital &mdash; Hoje</h2>' +
+  '<div class="row"><span class="label">Visitas (pageviews)</span><span class="val">'+(d.site.pageview||0)+'</span></div>' +
+  '<div class="row"><span class="label">Cliques em CTA (total)</span><span class="val">'+(d.site.cliques_total||0)+'</span></div>' +
+  '<div class="row"><span class="label">&nbsp;&nbsp;Hero</span><span class="val">'+(d.site.cta_hero||0)+'</span></div>' +
+  '<div class="row"><span class="label">&nbsp;&nbsp;Planos (S/P/E)</span><span class="val">'+(d.site.cta_planos_starter||0)+' / '+(d.site.cta_planos_pro||0)+' / '+(d.site.cta_planos_equipe||0)+'</span></div>' +
+  '<div class="row"><span class="label">Chegaram no WhatsApp</span><span class="val" style="color:var(--green)">'+(d.site.chegou_whatsapp||0)+'</span></div>' +
+  '<div class="row"><span class="label">Convers\xe3o visita&rarr;clique</span><span class="val">'+((d.site.pageview||0)>0?((d.site.cliques_total||0)/(d.site.pageview)*100).toFixed(1):0)+'%</span></div></div>'
+  ) : '');
 
   document.getElementById('grid').innerHTML = html;
 }
