@@ -32,13 +32,17 @@ async def webhook_asaas(request: Request):
     Formato: {"event": "PAYMENT_RECEIVED", "payment": {"externalReference": "phone|plan", ...}}
     """
     # — Validação de segurança —
+    # O Asaas envia o token no header "asaas-access-token".
+    # Mantemos Authorization/query como alternativas para testes manuais.
     secret = settings.WEBHOOK_ASAAS_TOKEN
     if secret:
-        auth_header = request.headers.get("Authorization", "")
-        token_query = request.query_params.get("token", "")
-        token_recebido = auth_header.replace("Bearer ", "").strip() or token_query
+        token_recebido = (
+            request.headers.get("asaas-access-token", "").strip()
+            or request.headers.get("Authorization", "").replace("Bearer ", "").strip()
+            or request.query_params.get("token", "").strip()
+        )
         if token_recebido != secret:
-            logger.warning(f"Webhook Asaas rejeitado: token inválido")
+            logger.warning("Webhook Asaas rejeitado: token inválido")
             raise HTTPException(status_code=401, detail="Token inválido")
 
     try:
